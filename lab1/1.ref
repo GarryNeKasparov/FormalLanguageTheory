@@ -1,0 +1,18 @@
+$ENTRY Go {
+    = <Solve './tests/1.txt' (1)>;
+}
+
+Solve {
+    e.File (s.Stream)
+    , <Open 'r' s.Stream e.File> :
+    , <ReadRules s.Stream ()> : e.Rules = <Prout e.Rules>;
+}
+
+ReadRules {
+    s.Stream (e.Rules)
+    , <Get s.Stream> : e.Rule
+    , e.Rule : {
+        0 = e.Rules;
+        e.NotNull = <ReadRules s.Stream (e.Rules (e.Rule))>;
+    }
+}
