@@ -1,19 +1,11 @@
-/* Ординал - пара (ord коэффицент, те w * 3 = (ord 3))
-   F0(x) = ((ord aF) + bF) * x + (ord cF) + dF
-
-   Правила:
-   n + (ord x) = (ord x)
-   n * (ord x) = (ord x)
-   (ord a) * ((ord b) + (ord c)) = (ord a) * (ord b) + (ord a) * (ord c)
-   ((ord a) + x) * (ord b) = (ord b) * (ord b)
-   ((ord a) + x) * ((ord b) + y) = (ord b) * (ord b) + (ord a*y) + x
-*/
+*$FROM LibraryEx
+*$EXTERN Map;
 
 $ENTRY Go {
 *    = <Solve './tests/1.txt' (1)>;
-    = <Prout <OrdinalArithm (
-        ('a'' + '(ord 'b'))' * '('c'' + '(ord 'd'))' * '('n'' + '(ord 't'))
-      )>>;
+    = <Prout
+        <OrdinalRules '(3 2) * (2 1)'>
+       >;
 }
 
 Solve {
@@ -24,33 +16,75 @@ Solve {
     , <CreateInts e.Rules> : = <Prout <Dg 'A'>'\n'<Dg 'B'>'\n'<Dg 'C'>>;
 }
 
+
+
+
+OrdinalRules {
+    'w * 'e.Vect = <Shift e.Vect>;
+    e.Vect' * w' = <MultVectorW e.Vect ()>;
+    '('t.v1' 't.v0') * 'e.Vect = <Prout t.v1' * 'e.Vect>
+    <OrdinalRules 'w * '<OrdinalRules t.v1' * 'e.Vect>>' + '
+    <OrdinalRules t.v0' * 'e.Vect>;
+    e.Koef' * 'e.Vect
+    , e.Vect : e.Begin' 'e.Last')'
+    , e.Last : {
+        '0' = e.Begin' 'e.Koef')';
+        e.NotNull = e.Begin' 'e.Last'*'e.Koef')';
+    };
+
+
+    e.Vect' * 'e.Koef = <MultVector (e.Vect) (e.Koef)>;
+    e.Else = <Prout Not a rule'\n'> e.Else;
+}
+
+MultVectorW {
+    '('e.First' 'e.Vect () = <MultVectorW e.Vect (1 1)>;
+    e.First' 'e.Body (e.Ans) = <MultVectorW e.Body (e.Ans 1)>;
+    e.Last')' (e.Ans) = (e.Ans '0');
+
+}
+
+MultVector {
+*    ('('e.First' 'e.Rest')') (e.Koef) = (e.First'*'e.Koef' '<MultVector (e.Rest) (e.Koef)>);
+    (e.First' 'e.Rest) (e.Koef) = e.First'*'e.Koef' '<MultVector (e.Rest) (e.Koef)>;
+    (e.First e.Rest')') (e.Koef) = e.First e.Rest'*'e.Koef')';
+}
+
+Shift {
+    e.Vect
+    , e.Vect : e.Begin' 'e.Last')' = e.Begin' 'e.Last' 0)';
+}
+
+
+
+
+/*
 OrdinalArithm {
-*    (e.Number1' * 'e.Number2) = (<Mul <Numb e.Number1> <Numb e.Number2>>);
-*    (e.Number1' + 'e.Number2) = (<Add <Numb e.Number1> <Numb e.Number2>>);
-    (e.Number' + '(ord e.K1)) = (ord e.K1);
-    (e.Number' * '(ord e.K1)) = (ord e.K1);
-    ((ord e.K1)' * 'e.B1) = (ord e.K1' * 'e.B1);
-    ((ord e.K1)' * '(ord e.K2)) = ((ord e.K1)' * '(ord e.K2));
-    (e.Mult1' * 'e.Mult2)
-    , <OrdinalArithm e.Mult1> : {
-        (e.Add1' + 'e.Add2) = <Prout e.Mult2><OrdinalArithm (e.Add1' * 'e.Mult2)>' + '<OrdinalArithm (e.Add2' * 'e.Mult2)>;
+    (ord e.K1)' * '(ord e.K2) = <Prout 4 ((ord e.K1)' * '(ord e.K2))> (ord ord e.K2);
+    (ord e.K1)' * 'e.B1 = <Prout 3 ((ord e.K1)' * 'e.B1)> (ord e.K1' * 'e.B1);
+    (e.Number' + '(ord e.K1)) = <Prout 1 (e.Number' + '(ord e.K1))> (ord e.K1);
+    (e.Number' * '(ord e.K1)) = <Prout 2 (e.Number' * '(ord e.K1))> (ord e.K1);
+
+
+    e.Mult1' * 'e.Mult2
+    , <Prout e.Mult1' tut 'e.Mult2> :
+    , <OrdinalArithm (e.Mult1)> : {
+        (e.Add1' + 'e.Add2) = <Prout parse1 e.Add1' 'plus e.Add2>
+        (<OrdinalArithm (<OrdinalArithm e.Add1>)' * '(<OrdinalArithm e.Mult2>)>)' + '
+        (<OrdinalArithm (<OrdinalArithm e.Add2>)' * '(<OrdinalArithm e.Mult2>)>);
         e.NoAdd1
         , <OrdinalArithm e.Mult2> : {
-            (e.Add3' + 'e.Add4) = <OrdinalArithm (e.Mult1' * 'e.Add3)>' + '<OrdinalArithm (e.Mult1' * 'e.Add4)>;
-            e.NoAdd2 = (e.NoAdd1' * 'e.NoAdd2);
+            (e.Add3' + 'e.Add4) = <Prout parse2 e.Add3' 'plus e.Add4>
+                (<OrdinalArithm <OrdinalArithm (e.NoAdd1)>' * '<OrdinalArithm (e.Add3)>>)' + '
+                (<OrdinalArithm <OrdinalArithm (e.NoAdd1)>' * '<OrdinalArithm (e.Add4)>>);
+            e.NoAdd2 = <Prout last e.NoAdd1' * 'e.NoAdd2>
+             e.NoAdd1' * 'e.NoAdd2;
             };
      };
-    ((ord e.K1)' * '(ord e.K2' + 'e.B2)) =
-        (ord e.K1)' * '(ord e.K2)' + '
-        <OrdinalArithm (ord e.K1)' * 'e.B2>;
-    /*
-    ((ord e.K1)' + 'e.B1)' * 'e.B2 = (ord e.K1' * 'e.B2);
-    ((ord e.K1)' + 'e.B1)' * '(ord e.K2) = (ord e.K2)' * '(ord e.K2);
-    ((ord e.K1)' + 'e.B1)' * '((ord e.K2)' + 'e.B2) =
-        <OrdinalArithm ((ord e.K1)' + 'e.B1)' * '(ord e.K2)>' + '
-        <OrdinalArithm ((ord e.K1)' + 'e.B1)' * 'e.B2>;
-        */
+    e.e = <Prout no e.e>  e.e;
+
 }
+*/
 
 CreateInts {
     s.F = <Prout s.F> <BuildFunc s.F>;
@@ -58,7 +92,7 @@ CreateInts {
 }
 
 BuildFunc {
-    s.F = <Br s.F '=' '((ord a's.F') + b's.F') * x + (ord c's.F') + d's.F''>;
+    s.F = <Br s.F '=' '(a's.F' b's.F') , (c's.F' d's.F')'>;
 }
 
 ReadRules {
