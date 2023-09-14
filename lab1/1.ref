@@ -1,90 +1,90 @@
-*$FROM LibraryEx
-*$EXTERN Map;
-
 $ENTRY Go {
-*    = <Solve './tests/1.txt' (1)>;
-    = <Prout
-        <OrdinalRules '(3 2) * (2 1)'>
-       >;
+    = <Prout <Solve './tests/1.txt' (1)>>;
 }
 
 Solve {
     e.File (s.Stream)
     , <Open 'r' s.Stream e.File> :
-    , <ReadRules s.Stream ()> : e.Rules
-    , <Prout Rules ': ' e.Rules> :
-    , <CreateInts e.Rules> : = <Prout <Dg 'A'>'\n'<Dg 'B'>'\n'<Dg 'C'>>;
+    , <ReadRules s.Stream () ()> : e.LeftRules' | 'e.RightRules
+    , <Prout Rules ': ' e.LeftRules' | 'e.RightRules> :
+    , <Generate (e.LeftRules) (e.RightRules) ()> : e.Res = e.Res;
 }
 
+Generate {
+    (((e.LeftRule)e.LeftRules)) (((e.RightRule)e.RightRules)) (e.Res)
+    , <Prout e.LeftRule> :
+    , <Prout e.RightRule> :
+    , <CalcFunc (e.LeftRule) ()> : e.CalculatedLeft
+    , <CalcFunc (e.RightRule) ()> : e.CalculatedRight = <Prout e.CalculatedLeft>
+        <Generate (e.LeftRules) (e.RightRules) (e.Res (e.CalculatedLeft) (e.CalculatedRight))>;
+    ( ) ( ) (e.Res) = e.Res;
+}
 
-
+CalcFunc {
+    (e.First s.Func2 s.Func1) ()
+    , <Cp s.Func1> : e.Int1
+    , <Cp s.Func2> : e.Int2
+    , e.Int1 : '('e.X1' , 'e.Bias1')'
+    , e.Int2 : '('e.X2' , 'e.Bias2')'
+    ,'('<OrdinalRules
+            <OrdinalRules e.X1' * 'e.X2>' + '<OrdinalRules e.X1' * 'e.Bias2>>' , 'e.Bias1
+      ')' : e.Calculated = <CalcFunc (e.First) (e.Calculated)>;
+    (s.Func) () = <Cp s.Func>;
+    (s.Func) (e.Calculated)
+    , <Prout here> :
+    , <Cp s.Func> : e.Int
+    , e.Int : '('e.X1' , 'e.Bias1')'
+     , e.Calculated : '('e.X2' , 'e.Bias2')'
+     , '('<OrdinalRules
+                 <OrdinalRules e.X1' * 'e.X2>' + '<OrdinalRules e.X1' * 'e.Bias2>>' , 'e.Bias1
+        ')' : e.Calculated2 = e.Calculated2;
+    (e.First s.Func) (e.Calculated)
+    , <Prout hello> :
+    , <Cp s.Func> : e.Int
+    , e.Int : '('e.X1' , 'e.Bias1')'
+    , e.Calculated : '('e.X2' , 'e.Bias2')'
+    , '('<OrdinalRules
+            <OrdinalRules e.X1' * 'e.X2>' + '<OrdinalRules e.X1' * 'e.Bias2>>' , 'e.Bias1
+      ')' : e.Calculated2 = <CalcFunc (e.First) (e.Calculated2)>;
+}
 
 OrdinalRules {
     'w * 'e.Vect = <Shift e.Vect>;
     e.Vect' * w' = <MultVectorW e.Vect ()>;
-    '('t.v1' 't.v0') * 'e.Vect = <Prout t.v1' * 'e.Vect>
-    <OrdinalRules 'w * '<OrdinalRules t.v1' * 'e.Vect>>' + '
-    <OrdinalRules t.v0' * 'e.Vect>;
+    '('e.v0' 'e.v1') * 'e.Vect
+    , <OrdinalRules 'w * '<OrdinalRules e.v1' * 'e.Vect>> : e.FirstMul
+    , <OrdinalRules e.v0' * 'e.Vect> : e.SecondMul
+        = <OrdinalRules e.FirstMul' + 'e.SecondMul>;
+    e.Vect1' + 'e.Vect2 = <AddVector (e.Vect1) (e.Vect2) ()>;
     e.Koef' * 'e.Vect
-    , e.Vect : e.Begin' 'e.Last')'
-    , e.Last : {
-        '0' = e.Begin' 'e.Koef')';
-        e.NotNull = e.Begin' 'e.Last'*'e.Koef')';
-    };
-
-
+    , e.Vect : e.Begin' 'e.Last = e.Begin'*'e.Koef' 'e.Last;
     e.Vect' * 'e.Koef = <MultVector (e.Vect) (e.Koef)>;
     e.Else = <Prout Not a rule'\n'> e.Else;
 }
 
-MultVectorW {
-    '('e.First' 'e.Vect () = <MultVectorW e.Vect (1 1)>;
-    e.First' 'e.Body (e.Ans) = <MultVectorW e.Body (e.Ans 1)>;
-    e.Last')' (e.Ans) = (e.Ans '0');
+AddVector {
+    ('('e.Begin1' 'e.Rest1) ('('e.Begin2' 'e.Rest2) () = <AddVector (e.Rest1) (e.Rest2) (e.Begin1'+'e.Begin2)>;
+    (e.Begin1' 'e.Rest1) (e.Begin2' 'e.Rest2) (e.Res) = <AddVector (e.Rest1) (e.Rest2) (e.Res' 'e.Begin1'+'e.Begin2)>;
+    (e.Begin1' 'e.Rest1')') (e.Last2')') (e.Res) = '('e.Res' 'e.Begin1'+'e.Last2' 'e.Rest1')';
+    (e.Last1')') (e.Begin2' 'e.Rest2')') (e.Res) = '('e.Res' 'e.Last1'+'e.Begin2' 'e.Rest2')';
+    (e.Last1')') (e.Last2')') (e.Res) = '('e.Res' 'e.Last1'+'e.Last2')';
+    (e.1) (e.2) (e.Res) = <Prout e.1 e.2 (e.Res)>;
+}
 
+MultVectorW {
+    '('e.First' 'e.Body () = <MultVectorW e.Body ('0 1')>;
+    e.First' 'e.Body (e.Ans) = <MultVectorW e.Body (e.Ans' 1')>;
+    e.Last')' (e.Ans) = '('e.Ans' 1)';
 }
 
 MultVector {
-*    ('('e.First' 'e.Rest')') (e.Koef) = (e.First'*'e.Koef' '<MultVector (e.Rest) (e.Koef)>);
     (e.First' 'e.Rest) (e.Koef) = e.First'*'e.Koef' '<MultVector (e.Rest) (e.Koef)>;
     (e.First e.Rest')') (e.Koef) = e.First e.Rest'*'e.Koef')';
 }
 
 Shift {
-    e.Vect
-    , e.Vect : e.Begin' 'e.Last')' = e.Begin' 'e.Last' 0)';
+    '('e.Vect')' = '(0 'e.Vect')';
 }
-
-
-
-
-/*
-OrdinalArithm {
-    (ord e.K1)' * '(ord e.K2) = <Prout 4 ((ord e.K1)' * '(ord e.K2))> (ord ord e.K2);
-    (ord e.K1)' * 'e.B1 = <Prout 3 ((ord e.K1)' * 'e.B1)> (ord e.K1' * 'e.B1);
-    (e.Number' + '(ord e.K1)) = <Prout 1 (e.Number' + '(ord e.K1))> (ord e.K1);
-    (e.Number' * '(ord e.K1)) = <Prout 2 (e.Number' * '(ord e.K1))> (ord e.K1);
-
-
-    e.Mult1' * 'e.Mult2
-    , <Prout e.Mult1' tut 'e.Mult2> :
-    , <OrdinalArithm (e.Mult1)> : {
-        (e.Add1' + 'e.Add2) = <Prout parse1 e.Add1' 'plus e.Add2>
-        (<OrdinalArithm (<OrdinalArithm e.Add1>)' * '(<OrdinalArithm e.Mult2>)>)' + '
-        (<OrdinalArithm (<OrdinalArithm e.Add2>)' * '(<OrdinalArithm e.Mult2>)>);
-        e.NoAdd1
-        , <OrdinalArithm e.Mult2> : {
-            (e.Add3' + 'e.Add4) = <Prout parse2 e.Add3' 'plus e.Add4>
-                (<OrdinalArithm <OrdinalArithm (e.NoAdd1)>' * '<OrdinalArithm (e.Add3)>>)' + '
-                (<OrdinalArithm <OrdinalArithm (e.NoAdd1)>' * '<OrdinalArithm (e.Add4)>>);
-            e.NoAdd2 = <Prout last e.NoAdd1' * 'e.NoAdd2>
-             e.NoAdd1' * 'e.NoAdd2;
-            };
-     };
-    e.e = <Prout no e.e>  e.e;
-
-}
-*/
 
 CreateInts {
     s.F = <Prout s.F> <BuildFunc s.F>;
@@ -92,14 +92,13 @@ CreateInts {
 }
 
 BuildFunc {
-    s.F = <Br s.F '=' '(a's.F' b's.F') , (c's.F' d's.F')'>;
+    s.F = <Br s.F '=' '((a's.F' b's.F') , (c's.F' d's.F'))'>;
 }
 
 ReadRules {
-    s.Stream (e.Rules)
-    , <Get s.Stream> : e.Rule
-    , e.Rule : {
-        0 = e.Rules;
-        e.NotNull = <ReadRules s.Stream (e.Rules e.Rule)>;
-    }
+    s.Stream (e.LeftRules) (e.RightRules)
+    , <Get s.Stream> : {
+        0 = (e.LeftRules)' | '(e.RightRules);
+        e.LeftRule' -> 'e.RightRule = <ReadRules s.Stream (e.LeftRules (e.LeftRule)) (e.RightRules (e.RightRule))>
+    };
 }
