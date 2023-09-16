@@ -1,5 +1,6 @@
 $ENTRY Go {
     = <Prout <Solve './tests/1.txt' (1)>>;
+*    = <Prout <OrdinalRules '(bA aA) * (bB aB)'>>;
 }
 
 Solve {
@@ -7,39 +8,52 @@ Solve {
     , <Open 'r' s.Stream e.File> :
     , <ReadRules s.Stream () ()> : e.LeftRules' | 'e.RightRules
     , <Prout Rules ': ' e.LeftRules' | 'e.RightRules> :
+    , <CreateInts e.LeftRules> :
+    , <CreateInts e.RightRules> :
+*    , <Dgall> : e.All
+*    , <Prout e.All> :
     , <Generate (e.LeftRules) (e.RightRules) ()> : e.Res = e.Res;
 }
 
 Generate {
+    (( )) (( )) (e.Res) = e.Res;
     (((e.LeftRule)e.LeftRules)) (((e.RightRule)e.RightRules)) (e.Res)
-    , <Prout e.LeftRule> :
-    , <Prout e.RightRule> :
+    , <Prout LeftRule e.LeftRule> :
+    , <Prout RightRule e.RightRule> :
     , <CalcFunc (e.LeftRule) ()> : e.CalculatedLeft
-    , <CalcFunc (e.RightRule) ()> : e.CalculatedRight = <Prout e.CalculatedLeft>
-        <Generate (e.LeftRules) (e.RightRules) (e.Res (e.CalculatedLeft) (e.CalculatedRight))>;
-    ( ) ( ) (e.Res) = e.Res;
+    , <CalcFunc (e.RightRule) ()> : e.CalculatedRight =
+        <Prout Left is e.CalculatedLeft ' | ' rest is e.LeftRules>
+        <Prout Right is e.CalculatedRight ' | ' rest is e.RightRules>
+        <Generate ((e.LeftRules)) ((e.RightRules)) (e.Res e.CalculatedLeft' | 'e.CalculatedRight' ')>;
+
 }
 
 CalcFunc {
     (e.First s.Func2 s.Func1) ()
+    , <Prout first s.Func2 s.Func1> :
     , <Cp s.Func1> : e.Int1
     , <Cp s.Func2> : e.Int2
     , e.Int1 : '('e.X1' , 'e.Bias1')'
     , e.Int2 : '('e.X2' , 'e.Bias2')'
-    ,'('<OrdinalRules
-            <OrdinalRules e.X1' * 'e.X2>' + '<OrdinalRules e.X1' * 'e.Bias2>>' , 'e.Bias1
+    , <Prout '('e.X2' , 'e.Bias2') * ('e.X1' , 'e.Bias1')'> :
+    ,'('
+            <OrdinalRules e.X2' * 'e.X1>' , '<OrdinalRules <OrdinalRules e.X2' * 'e.Bias1>' + 'e.Bias2>
       ')' : e.Calculated = <CalcFunc (e.First) (e.Calculated)>;
-    (s.Func) () = <Cp s.Func>;
+    ( ) (e.Calculated) = e.Calculated;
+
+    (s.Func) () = <Prout second <Cp s.Func>> <Cp s.Func>;
+
     (s.Func) (e.Calculated)
-    , <Prout here> :
     , <Cp s.Func> : e.Int
     , e.Int : '('e.X1' , 'e.Bias1')'
-     , e.Calculated : '('e.X2' , 'e.Bias2')'
-     , '('<OrdinalRules
-                 <OrdinalRules e.X1' * 'e.X2>' + '<OrdinalRules e.X1' * 'e.Bias2>>' , 'e.Bias1
-        ')' : e.Calculated2 = e.Calculated2;
+    , e.Calculated : '('e.X2' , 'e.Bias2')'
+    , <Prout third '('e.X1' , 'e.Bias1')'' * ''('e.X2' , 'e.Bias2')'> : =
+    '('
+            <OrdinalRules e.X1' * 'e.X2>' , '<OrdinalRules <OrdinalRules e.X1' * 'e.Bias2>' + 'e.Bias1>
+    ')';
+
     (e.First s.Func) (e.Calculated)
-    , <Prout hello> :
+    , <Prout vierte> :
     , <Cp s.Func> : e.Int
     , e.Int : '('e.X1' , 'e.Bias1')'
     , e.Calculated : '('e.X2' , 'e.Bias2')'
@@ -87,12 +101,21 @@ Shift {
 }
 
 CreateInts {
-    s.F = <Prout s.F> <BuildFunc s.F>;
-    s.F e.RestRules = <Prout s.F> <BuildFunc s.F> <CreateInts e.RestRules>;
+    ((e.Rule)e.RestRules) = <BuildFuncForString (e.Rule)> <CreateInts (e.RestRules)>;
+    () = ;
+}
+
+BuildFuncForString {
+    (s.F e.RestChars) = <BuildFunc s.F><BuildFuncForString (e.RestChars)>;
+    ( ) = ;
 }
 
 BuildFunc {
-    s.F = <Br s.F '=' '((a's.F' b's.F') , (c's.F' d's.F'))'>;
+    s.F
+    , <Cp s.F> : {
+                = <Br s.F '=' '((b's.F' a's.F') , (d's.F' c's.F'))'>;
+        e.Found = ;
+    };
 }
 
 ReadRules {
