@@ -1,4 +1,4 @@
 # FormalLanguageTheory
 Лабораторные работы по курсу "Теория формальных языков"
 
-ДНЕЙ НА РЕФАЛЕ: ![](https://geps.dev/progress/5)
+ДНЕЙ НА РЕФАЛЕ: ![](https://geps.dev/progress/6)
