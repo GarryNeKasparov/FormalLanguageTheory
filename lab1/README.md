@@ -19,3 +19,19 @@
 выражений - абстрагируемся до работы с двумя векторами.
 
 Что ж! В теории звучит хорошо, а теперь за практику!
+
+---
+### Как это работает?
+Скрипт **`test.cmd`**
+``` cmd
+CALL > %2
+CALL > %3
+CALL rlc main.ref > nul & main.exe %1 %2 > nul
+CALL yices-smt2 %2 > %3
+CALL rlc BuildAnswer.ref > nul & BuildAnswer.exe %3
+CALL del %2 %3 main.exe BuildAnswer.exe
+```
+* запускается с тремя аргументами:
+  * <i>путь/до/входа</i>
+  * <i>путь/до/результата_программы</i>
+  * <i>путь/до/результата_smt2</i>
