@@ -1,0 +1,254 @@
+$ENTRY Go {
+    = <Prout <Solve ('./tests/1.txt') ('./tests/1_out.smt2') 1 (2)>>;
+*    = <Prout <OrdinalRules '(2 . 6 . 5) + (8 . 7)'>>;
+*    = <First ('(bA . aA . dA . cA ) . (bC . aC . dC . cC )')>;
+}
+
+Solve {
+    (e.InFile) (e.OutFile) s.InStream (s.OutStream)
+    , <Open 'r' s.InStream e.InFile> :
+    , <ReadRules s.InStream () ()> : e.LeftRules' | 'e.RightRules
+    , <Prout Rules ': ' e.LeftRules' | 'e.RightRules> :
+    , <CreateInts e.LeftRules ()> : e.LeftVars
+    , <CreateInts e.RightRules ()> : e.RightVars
+    , <ConcatenateVars (e.LeftVars) (e.RightVars)> : e.AllVars
+*    , <Prout e.LeftVars e.RightVars> :
+    , <Open 'w' s.OutStream e.OutFile> :
+    , <GenerateInEq (e.LeftRules) (e.RightRules) ()> : ' '(e.Inequations) /* не смог найти, откуда берется пробел*/
+**    = <Prout e.Inequations>;
+**    , <First (e.Inequations)> : (e.1) e.2 = <Prout e.1>;
+    = <GenerateSMT ('('e.Inequations')') (e.AllVars) s.OutStream>;
+}
+
+ConcatenateVars {
+    (e.Arr1) (e.Arr2' . ') = e.Arr1 e.Arr2;
+}
+
+/* ################################################ */
+GenerateSMT {
+    (e.Inequations) (e.AllVars) s.OutStream
+     , <SetLogic s.OutStream> :
+     , <DeclareFun ('('e.AllVars')') s.OutStream> :
+     , <AssertInEq (e.Inequations) s.OutStream> :
+     , <CheckAndGet s.OutStream> : = ;
+}
+
+SetLogic {
+   s.OutStream, <Putout s.OutStream '(set-logic QF_NIA)'> : =;
+}
+
+DeclareFun {
+    (e.Arr) s.OutStream
+*    , <Prout e.Arr> :
+    , <First (e.Arr)> : (e.FElem) e.RElem
+*    , <Prout e.FElem e.RElem> :
+    , e.FElem : {
+        = ;
+        e.NotEmpty
+            , <Putout s.OutStream '(declare-fun 'e.FElem'() Int)'> :
+            = <DeclareFun (e.RElem) s.OutStream>;
+    };
+}
+
+DeclareFunFromArr {
+    (e.Arr) s.OutStream
+    , <First (e.Arr)> : (e.FElem) e.RElem
+    , e.FElem : {
+         = <Prout hell>;
+        e.NotEmpty
+        , <Putout s.OutStream '(declare-fun 'e.FElem'() Int)'> :
+        = <DeclareFunFromArr (e.RElem) s.OutStream>;
+    };
+
+}
+
+AssertInEq {
+    (e.Inequations) s.OutStream
+    , <First (e.Inequations)> : (e.Ineq) e.Rest
+    , <Prout e.Ineq> :
+    , e.Ineq : {
+        = ;
+       e.NotEmpty
+       , <Putout s.OutStream '(assert 'e.Ineq')'> :
+       = <AssertInEq (e.Rest) s.OutStream>;
+    };
+}
+
+CheckAndGet {
+    s.OutStream = <Putout s.OutStream '(check-sat)\n(get-model)'>;
+}
+/* ########################################################## */
+GenerateInEq {
+    (( )) (( )) (e.Res) = e.Res;
+    (((e.LeftRule)e.LeftRules)) (((e.RightRule)e.RightRules)) (e.Res)
+    , <CalcFunc (e.LeftRule) ()> : e.CalculatedLeft
+    , <CalcFunc (e.RightRule) ()> : e.CalculatedRight
+    ,<ParseAnswer (e.CalculatedLeft' | 'e.CalculatedRight)> : e.Parsed
+        =<GenerateInEq ((e.LeftRules)) ((e.RightRules)) (e.Res' 'e.Parsed)>;
+}
+
+CalcFunc {
+    (e.First s.Func2 s.Func1) ()
+    , <Cp s.Func1> : e.Int1
+    , <Cp s.Func2> : e.Int2
+    , e.Int1 : '('e.X1' , 'e.Bias1')'
+    , e.Int2 : '('e.X2' , 'e.Bias2')'
+    ,'('
+            <OrdinalRules e.X2' * 'e.X1>' , '<OrdinalRules <OrdinalRules e.X2' * 'e.Bias1>' + 'e.Bias2>
+      ')' : e.Calculated = <CalcFunc (e.First) (e.Calculated)>;
+    ( ) (e.Calculated) = e.Calculated;
+
+    (s.Func) () = <Cp s.Func>;
+
+    (s.Func) (e.Calculated)
+    , <Cp s.Func> : e.Int
+    , e.Int : '('e.X1' , 'e.Bias1')'
+    , e.Calculated : '('e.X2' , 'e.Bias2')' =
+    '('
+            <OrdinalRules e.X1' * 'e.X2>' , '<OrdinalRules <OrdinalRules e.X1' * 'e.Bias2>' + 'e.Bias1>
+    ')';
+
+    (e.First s.Func) (e.Calculated)
+    , <Cp s.Func> : e.Int
+    , e.Int : '('e.X1' , 'e.Bias1')'
+    , e.Calculated : '('e.X2' , 'e.Bias2')'
+    , '('<OrdinalRules
+            <OrdinalRules e.X1' * 'e.X2>' + '<OrdinalRules e.X1' * 'e.Bias2>>' , 'e.Bias1
+      ')' : e.Calculated2 = <CalcFunc (e.First) (e.Calculated2)>;
+}
+
+ParseAnswer {
+    (e.Left' | 'e.Right)
+    , <Prout e.Left' | 'e.Right> :
+    = <GetInequalities ((e.Left) (e.Right))>;
+}
+
+GetInequalities {
+    (('('e.LeftX' , 'e.LeftB')') ('('e.RightX' , 'e.RightB')'))
+    =
+    (<GetInequality ('>') (e.LeftX) (e.RightX) ()>' . '
+     <GetInequality ('>=') (e.LeftB) (e.RightB) ()>);
+}
+
+GetInequality {
+    (e.Op) () () (e.Res' . ') = e.Res;
+    (e.Op) (e.Single) () (e.Res)
+        , <First (e.Single)> : (e.SF) e.SR
+        , e.SF : {
+             = e.Res;
+            e.NotEmpty = <GetInequality (e.Op) (e.SR) () ('('e.Op' 'e.SF' 0)')>;
+        };
+
+    (e.Op) (e.LeftX) (e.RightX) (e.Res)
+    , <First (e.LeftX)> : (e.LF) e.LR
+    , <First (e.RightX)> : (e.RF) e.RR
+    , e.LF : {
+         = <GetInequality (e.Op) (e.RR) () (e.Res)>;
+        e.NotEmpty1
+        , e.RF : {
+             = <GetInequality (e.Op) (e.LR) () (e.Res)>;
+            e.NotEmpty2 = <GetInequality (e.Op) (e.LR) (e.RR) ('('e.Op' 'e.LF' 'e.RF') . (>= 'e.RF' 0) . 'e.Res)>;
+        };
+    };
+}
+
+First {
+    ('('e.Begin' . 'e.Rest) = (e.Begin)'('e.Rest;
+    ('('e.Last')') = (e.Last);
+    () = () ();
+}
+
+OrdinalRules {
+    'w * 'e.Vect = <Shift e.Vect>;
+    e.Vect' * w' = <MultVectorW (e.Vect)>;
+    '('e.v0' . 'e.v1') * ('e.Vect')' = <MultVectorCord ('('e.v0' . 'e.v1')') (e.Vect)>;
+    '('e.v0' . 'e.v1') * 'e.Koef = '('e.v0' . (* 'e.v1' 'e.Koef'))';
+    e.Vect1' + 'e.Vect2 = <AddVector (e.Vect1) (e.Vect2) ()>;
+    e.Koef' * ('e.Vect')'
+    , e.Vect : e.Begin' . 'e.Last = '(* e.Begin' 'e.Koef) . 'e.Last;
+    e.Else = <Prout Not a rule e.Else'\n'> e.Else;
+}
+
+MultVectorCord {
+    ('('e.v0' . 'e.v1')') (e.Vect)
+    , <First ('('e.Vect')')> : (e.Koef) e.Rest
+    , <Prout '('e.v0' . 'e.v1')*'e.Koef' = '<OrdinalRules '('e.v0' . 'e.v1') * 'e.Koef>> :
+    , <Shift <Shift e.Rest>> : e.ShiftedRest
+    , <OrdinalRules '('e.v0' . 'e.v1') * 'e.Koef> : e.MultKoef
+    , <Prout e.ShiftedRest' + 'e.MultKoef> :
+        = <OrdinalRules e.ShiftedRest' + 'e.MultKoef>;
+}
+
+SimplifyAdd {
+    '(+ 'e.Begin1' 'e.Begin2')'
+    , e.Begin1 : {
+        '0' = e.Begin2;
+        e.Else1
+        , e.Begin2 : {
+            '0' = e.Begin1;
+            e.Else2 = '(+ 'e.Begin1' 'e.Begin2')';
+        };
+    };
+}
+
+AddVector {
+    ('('e.Begin1' . 'e.Rest1) ('('e.Begin2' . 'e.Rest2) ()
+        = <AddVector (e.Rest1) (e.Rest2) (e.Begin2)>;
+    (e.Begin1' . 'e.Rest1) (e.Begin2' . 'e.Rest2) (e.Res)
+        = <AddVector (e.Rest1) (e.Rest2) (e.Res' . '<SimplifyAdd '(+ 'e.Begin1' 'e.Begin2')'>)>;
+    (e.Begin1' . 'e.Rest1')') (e.Last2')') (e.Res)
+        = '('e.Res' . '<SimplifyAdd '(+ 'e.Begin1' 'e.Last2')'>' . 'e.Rest1')';
+    (e.Last1')') (e.Begin2' . 'e.Rest2')') (e.Res)
+        = '('e.Res' . '<SimplifyAdd '(+ 'e.Last1' 'e.Begin2')'>' . 'e.Rest2')';
+    (e.Last1')') (e.Last2')') (e.Res)
+        = '('e.Res' . '<SimplifyAdd '(+ 'e.Last1' 'e.Last2')'>')';
+    (e.1) (e.2) (e.Res) = <Prout no need for this line (e.Res)> e.Res;
+}
+
+MultVectorW {
+    ('('e.First' . 'e.Body) = '(0 . 'e.Body;
+}
+
+MultVector {
+    (e.First' . 'e.Rest) (e.Koef) = e.First'*'e.Koef' '<MultVector (e.Rest) (e.Koef)>;
+    (e.First e.Rest')') (e.Koef) = e.First e.Rest'*'e.Koef')';
+}
+
+Shift {
+    '('e.Vect')' = '(0 . 'e.Vect')';
+}
+/* ############################################# */
+CreateInts {
+    ((e.Rule)e.RestRules) (e.Vars)
+     , <BuildFuncForString (e.Rule) ()> : e.VarList
+     = <CreateInts (e.RestRules) (e.Vars e.VarList)>;
+    () (e.Vars) = e.Vars;
+}
+
+BuildFuncForString {
+    (s.F e.RestChars) (e.AllVars)
+    , <BuildFunc s.F> : e.Vars
+    = <BuildFuncForString (e.RestChars) (e.Vars' . 'e.AllVars)>;
+    ( ) (e.AllVars) = e.AllVars;
+
+}
+
+
+BuildFunc {
+    s.F
+    , <Cp s.F> : {
+                = <Br s.F '=' '((b's.F' . a's.F') , (d's.F' . c's.F'))'>
+                  'b's.F' . a's.F' . d's.F' . c's.F;
+        e.Found = ;
+    };
+}
+
+
+ReadRules {
+    s.Stream (e.LeftRules) (e.RightRules)
+    , <Get s.Stream> : {
+        0 = (e.LeftRules)' | '(e.RightRules);
+        e.LeftRule' -> 'e.RightRule = <ReadRules s.Stream (e.LeftRules (e.LeftRule)) (e.RightRules (e.RightRule))>
+    };
+}
+

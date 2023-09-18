@@ -1,0 +1,26 @@
+$ENTRY Go {
+    = <Open 'r' 1 <Arg 1>> <ParseAns 1>;
+}
+
+ParseAns {
+    s.Stream
+    , <Get s.Stream> : {
+        0 = ;
+        'sat' = <Prout 'This SRS is terminated'><ParseAns s.Stream>;
+        'unsat' = <Prout 'This SRS is not terminated!'>;
+        '(= 'e.Var' 'e.Val')' = <CollectVars (e.Var) (e.Val) s.Stream><ParseAns s.Stream>;
+    };
+}
+
+CollectVars {
+    (s.Type s.F) (e.Collected) s.Stream
+    , <Get s.Stream> : {
+        0 = <PrintInterpolation s.Type (e.Collected)>;
+        '(= c's.F' 'e.Val')' = <PrintInterpolation s.F (e.Collected' 'e.Val)>; /* так как "c" точно последняя */
+        '(= 'e.Var' 'e.Val')' = <CollectVars (e.Var) (e.Collected' 'e.Val) s.Stream>;
+    }
+}
+
+PrintInterpolation {
+    s.F (e.b' 'e.a' 'e.d' 'e.c) = <Prout s.F'(x) = (w * 'e.b' + 'e.a') * x + (w * 'e.d' + 'e.c')'>;
+}
