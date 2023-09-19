@@ -1,40 +1,39 @@
 $ENTRY Go {
-*    = <Prout <Solve ('./tests/1.txt') ('./tests/1_out.smt2') 1 (2)>>;
     , <Arg 1> : e.TestPath
     , <Arg 2> : e.SmtPath
     = <Solve (e.TestPath) (e.SmtPath) 1 (2)>;
-*    = <Prout <OrdinalRules '(2 . 6 . 5) + (8 . 7)'>>;
-*    = <First ('(bA . aA . dA . cA ) . (bC . aC . dC . cC )')>;
 }
 
 Solve {
     (e.InFile) (e.OutFile) s.InStream (s.OutStream)
     , <Open 'r' s.InStream e.InFile> :
+    , <Open 'w' s.OutStream e.OutFile> :
     , <ReadRules s.InStream () ()> : e.LeftRules' | 'e.RightRules
-    , <Prout Rules ': ' e.LeftRules' | 'e.RightRules> :
     , <CreateInts e.LeftRules ()> : e.LeftVars
     , <CreateInts e.RightRules ()> : e.RightVars
     , <ConcatenateVars (e.LeftVars) (e.RightVars)> : e.AllVars
-    , <Prout vars '\n'e.LeftVars vs e.RightVars'\n'> :
-    , <Open 'w' s.OutStream e.OutFile> :
     , <GenerateInEq (e.LeftRules) (e.RightRules) ()> : e.Inequations
-*    , <Prout e.Inequations> :
-**    , <First (e.Inequations)> : (e.1) e.2 = <Prout e.1>;
     , <GenerateSMT ('('e.Inequations')') (e.AllVars) s.OutStream> :
     , <Close s.InStream> :
     , <Close s.OutStream> : = ;
 }
 
-ConcatenateVars {
-    (e.Arr1) (e.Arr2' . ') = e.Arr1 e.Arr2;
-    (e.Arr1) () = e.Arr1;
-}
+/*
+#####################################################################################
 
-/* ################################################ */
+    Функции для генерации SMT2 файла (в контексте, что все требуемое уже подсчитано):
+    GenerateSMT - вызывает в нужном порядке остальные функции
+    SetLogic    - устанавливает логику
+    DeclareFun  - объявляет коэффиценты, а также задает условие неотрицательности
+    AssertInEq  - задает неравенства на коэффиценты
+    CheckAndGet - проверка завершаемость и получение модели
+
+#####################################################################################
+*/
+
 GenerateSMT {
     (e.Inequations) (e.AllVars) s.OutStream
      , <SetLogic s.OutStream> :
-     , <Prout all vars e.AllVars> :
      , <DeclareFun ('('e.AllVars')') s.OutStream> :
      , <AssertInEq (e.Inequations) s.OutStream> :
      , <CheckAndGet s.OutStream> : = ;
@@ -46,11 +45,9 @@ SetLogic {
 
 DeclareFun {
     (e.Arr) s.OutStream
-*    , <Prout e.Arr> :
     , <First (e.Arr)> : (e.FElem) e.RElem
-    , <Prout e.FElem e.RElem> :
     , e.FElem : {
-        = ;
+        /* empty */ = ;
         e.NotEmpty
             , <Putout s.OutStream '(declare-fun 'e.FElem'() Int)'> :
             , <Putout s.OutStream '(assert (> 'e.FElem' 0))'> :
@@ -62,7 +59,7 @@ DeclareFunFromArr {
     (e.Arr) s.OutStream
     , <First (e.Arr)> : (e.FElem) e.RElem
     , e.FElem : {
-         = <Prout hell>;
+        /* empty */ = <Prout hell>;
         e.NotEmpty
         , <Putout s.OutStream '(declare-fun 'e.FElem'() Int)'> :
         = <DeclareFunFromArr (e.RElem) s.OutStream>;
@@ -73,9 +70,8 @@ DeclareFunFromArr {
 AssertInEq {
     (e.Inequations) s.OutStream
     , <First (e.Inequations)> : (e.Ineq) e.Rest
-    , <Prout e.Ineq> :
     , e.Ineq : {
-        = ;
+       /* empty */  = ;
        e.NotEmpty
        , <Putout s.OutStream '(assert 'e.Ineq')'> :
        = <AssertInEq (e.Rest) s.OutStream>;
@@ -85,13 +81,27 @@ AssertInEq {
 CheckAndGet {
     s.OutStream = <Putout s.OutStream '(check-sat)\n(get-model)'>;
 }
-/* ########################################################## */
+
+/*
+#####################################################################################
+
+    Функции для генерации неравенств на коэффиценты:
+    GenerateInEq    - проходит по всем парам (левая ч. -> правая ч.) и вызывает для
+                      них функции композиции и генерации неравенств
+    CalcFunc        - выполняет последовательное вычисление композиции функций
+    ParseAnswer     - промежуточная функция для чтения данных в определенном формате
+    GetInequalities - для пары (л.ч -> п.ч) строит неравенства
+    GetInequality   - строит неравенства по коэффицентам при x и свободным
+
+#####################################################################################
+*/
+
 GenerateInEq {
     (( )) (( )) (e.Res' . ') = e.Res;
     (((e.LeftRule)e.LeftRules)) (((e.RightRule)e.RightRules)) (e.Res)
     , <CalcFunc (e.LeftRule) ()> : e.CalculatedLeft
     , <CalcFunc (e.RightRule) ()> : e.CalculatedRight
-    ,<ParseAnswer (e.CalculatedLeft' | 'e.CalculatedRight)> : (e.Parsed)
+    , <ParseAnswer (e.CalculatedLeft' | 'e.CalculatedRight)> : (e.Parsed)
         = <GenerateInEq ((e.LeftRules)) ((e.RightRules)) (e.Res e.Parsed' . ')>;
 }
 
@@ -102,8 +112,8 @@ CalcFunc {
     , e.Int1 : '('e.X1' , 'e.Bias1')'
     , e.Int2 : '('e.X2' , 'e.Bias2')'
     ,'('
-            <OrdinalRules e.X2' * 'e.X1>' , '<OrdinalRules <OrdinalRules e.X2' * 'e.Bias1>' + 'e.Bias2>
-      ')' : e.Calculated = <CalcFunc (e.First) (e.Calculated)>;
+        <OrdinalRules e.X2' * 'e.X1>' , '<OrdinalRules <OrdinalRules e.X2' * 'e.Bias1>' + 'e.Bias2>
+    ')' : e.Calculated = <CalcFunc (e.First) (e.Calculated)>;
     ( ) (e.Calculated) = e.Calculated;
 
     (s.Func) () = <Cp s.Func>;
@@ -113,21 +123,21 @@ CalcFunc {
     , e.Int : '('e.X1' , 'e.Bias1')'
     , e.Calculated : '('e.X2' , 'e.Bias2')' =
     '('
-            <OrdinalRules e.X1' * 'e.X2>' , '<OrdinalRules <OrdinalRules e.X1' * 'e.Bias2>' + 'e.Bias1>
+        <OrdinalRules e.X1' * 'e.X2>' , '<OrdinalRules <OrdinalRules e.X1' * 'e.Bias2>' + 'e.Bias1>
     ')';
 
     (e.First s.Func) (e.Calculated)
     , <Cp s.Func> : e.Int
     , e.Int : '('e.X1' , 'e.Bias1')'
     , e.Calculated : '('e.X2' , 'e.Bias2')'
-    , '('<OrdinalRules
+    , '('
+        <OrdinalRules
             <OrdinalRules e.X1' * 'e.X2>' + '<OrdinalRules e.X1' * 'e.Bias2>>' , 'e.Bias1
-      ')' : e.Calculated2 = <CalcFunc (e.First) (e.Calculated2)>;
+    ')' : e.Calculated2 = <CalcFunc (e.First) (e.Calculated2)>;
 }
 
 ParseAnswer {
     (e.Left' | 'e.Right)
-    , <Prout e.Left' | 'e.Right> :
     = <GetInequalities ((e.Left) (e.Right))>;
 }
 
@@ -142,7 +152,7 @@ GetInequality {
     (e.Op) (e.Single) () (e.Res) /* возможно можно убрать */
         , <First (e.Single)> : (e.SF) e.SR
         , e.SF : {
-             = e.Res;
+            /* empty */ = e.Res;
             e.NotEmpty = <GetInequality (e.Op) (e.SR) () ('('e.Op' 'e.SF' 0) . 'e.Res)>;
         };
 
@@ -151,20 +161,51 @@ GetInequality {
     , <First (e.LeftX)> : (e.LF) e.LR
     , <First (e.RightX)> : (e.RF) e.RR
     , e.LF : {
-         = <GetInequality (e.Op) (e.RR) () (e.Res)>;
+        /* empty */ = <GetInequality (e.Op) (e.RR) () (e.Res)>;
         e.NotEmpty1
         , e.RF : {
-             = <GetInequality (e.Op) (e.LR) () (e.Res)>;
+            /* empty */ = <GetInequality (e.Op) (e.LR) () (e.Res)>;
             e.NotEmpty2 = <Prout 3 '('e.Op' 'e.LF' 'e.RF')'><GetInequality (e.Op) (e.LR) (e.RR) ('('e.Op' 'e.LF' 'e.RF') . 'e.Res)>;
         };
     };
 }
 
+/*
+#####################################################################################
+
+    Вспомогательные функции:
+    First           - получает первый элемент в списке (во всем коде введен единый
+                      формат разделения через ".")
+    ConcatenateVars - используется лишь единожды, склеивает два списка (вероятно,
+                      можно заменить средствами языка)
+
+#####################################################################################
+*/
 First {
     ('('e.Begin' . 'e.Rest) = (e.Begin)'('e.Rest;
     ('('e.Last')') = (e.Last);
     () = () ();
 }
+
+ConcatenateVars {
+    (e.Arr1) (e.Arr2' . ') = e.Arr1 e.Arr2;
+    (e.Arr1) () = e.Arr1;
+}
+/*
+#####################################################################################
+
+    Функции для работы с ординальной арифметикой:
+    OrdinalRules   - основные правила, записанные в readme (вероятно, что некоторые
+                     из них никогда и не вызываются)
+    MultVectorCord - читы: умножает (w*a + b) на любой "ориднальный многочлен"
+                     по заранее просчитанному правилу
+    SimplifyAdd    - случай сложения с 0
+    AddVector      - покомпонентное сложение (в идеале было бы написать через First)
+    MultVectorW    - умножение на w справа
+    Shift          - умножение на w слева
+
+#####################################################################################
+*/
 
 OrdinalRules {
     'w * 'e.Vect = <Shift e.Vect>;
@@ -180,11 +221,9 @@ OrdinalRules {
 MultVectorCord {
     ('('e.v0' . 'e.v1')') (e.Vect)
     , <First ('('e.Vect')')> : (e.Koef) e.Rest
-    , <Prout '('e.v0' . 'e.v1')*'e.Koef' = '<OrdinalRules '('e.v0' . 'e.v1') * 'e.Koef>> :
     , <Shift <Shift e.Rest>> : e.ShiftedRest
     , <OrdinalRules '('e.v0' . 'e.v1') * 'e.Koef> : e.MultKoef
-    , <Prout e.ShiftedRest' + 'e.MultKoef> :
-        = <OrdinalRules e.ShiftedRest' + 'e.MultKoef>;
+    = <OrdinalRules e.ShiftedRest' + 'e.MultKoef>;
 }
 
 SimplifyAdd {
@@ -217,15 +256,24 @@ MultVectorW {
     ('('e.First' . 'e.Body) = '(0 . 'e.Body;
 }
 
-MultVector {
-    (e.First' . 'e.Rest) (e.Koef) = e.First'*'e.Koef' '<MultVector (e.Rest) (e.Koef)>;
-    (e.First e.Rest')') (e.Koef) = e.First e.Rest'*'e.Koef')';
-}
-
 Shift {
     '('e.Vect')' = '(0 . 'e.Vect')';
 }
-/* ############################################# */
+
+/*
+#####################################################################################
+
+    Функции для первичной обработки входных данных:
+    CreateInts         - вызывает функцию построения интерполяции для каждой строки
+                         на входе
+    BuildFuncForString - вызывает функцию построения интерполяции для каждого символа
+                         в строке
+    BuildFunc          - строит интерполяцию для данного символа
+    ReadRules          - читает и сохраняет входные данных
+
+#####################################################################################
+*/
+
 CreateInts {
     ((e.Rule)e.RestRules) (e.Vars)
      , <BuildFuncForString (e.Rule) ()> : e.VarList
@@ -243,16 +291,14 @@ BuildFuncForString {
 
 }
 
-
 BuildFunc {
     s.F
     , <Cp s.F> : {
-                = <Br s.F '=' '((b's.F' . a's.F') , (d's.F' . c's.F'))'>
-                  'b's.F' . a's.F' . d's.F' . c's.F;
+        /* empty */ = <Br s.F '=' '((b's.F' . a's.F') , (d's.F' . c's.F'))'>
+                      'b's.F' . a's.F' . d's.F' . c's.F;
         e.Found = ;
     };
 }
-
 
 ReadRules {
     s.Stream (e.LeftRules) (e.RightRules)
