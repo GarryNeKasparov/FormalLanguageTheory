@@ -2,13 +2,26 @@ $ENTRY Go {
     = <Open 'r' 1 <Arg 1>> <ParseAns 1>;
 }
 
+/*
+#####################################################################################
+
+    Фунции для вывода ответа:
+    ParseAns           - проходит по всем строчкам файла, при находении очередной переменной
+                         буквы вызывает "сбор в кучу" остальных переменных этой буквы; это
+                         работает, так как в smt они подавались в одном порядке: b a d c
+    CollectVars        - собственно, собирает переменные в кучу
+    PrintInterpolation - выводит найденную интерполяцию
+
+#####################################################################################
+*/
+
 ParseAns {
     s.Stream
     , <Get s.Stream> : {
         0 = ;
-        'sat' = <Prout 'This SRS is terminated'><ParseAns s.Stream>;
+        'sat' = <Prout 'This SRS is terminated'> <ParseAns s.Stream>;
         'unsat' = <Prout 'This SRS is not terminated!'>;
-        '(= 'e.Var' 'e.Val')' = <CollectVars (e.Var) (e.Val) s.Stream><ParseAns s.Stream>;
+        '(= 'e.Var' 'e.Val')' = <CollectVars (e.Var) (e.Val) s.Stream> <ParseAns s.Stream>;
     };
 }
 
@@ -16,7 +29,7 @@ CollectVars {
     (s.Type s.F) (e.Collected) s.Stream
     , <Get s.Stream> : {
         0 = <PrintInterpolation s.Type (e.Collected)>;
-        '(= c's.F' 'e.Val')' = <PrintInterpolation s.F (e.Collected' 'e.Val)>; /* так как "c" точно последняя */
+        '(= c's.F' 'e.Val')' = <PrintInterpolation s.F (e.Collected' 'e.Val)>;
         '(= 'e.Var' 'e.Val')' = <CollectVars (e.Var) (e.Collected' 'e.Val) s.Stream>;
     }
 }
