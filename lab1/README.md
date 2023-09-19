@@ -43,7 +43,7 @@ CALL del %2 %3 main.exe BuildAnswer.exe
 
 **Вход:**
 ```
-A -> B
+A -> C
 
 ```
 

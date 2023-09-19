@@ -59,7 +59,7 @@ DeclareFunFromArr {
     (e.Arr) s.OutStream
     , <First (e.Arr)> : (e.FElem) e.RElem
     , e.FElem : {
-        /* empty */ = <Prout hell>;
+        /* empty */ = ;
         e.NotEmpty
         , <Putout s.OutStream '(declare-fun 'e.FElem'() Int)'> :
         = <DeclareFunFromArr (e.RElem) s.OutStream>;
@@ -157,7 +157,6 @@ GetInequality {
         };
 
     (e.Op) (e.LeftX) (e.RightX) (e.Res)
-    , <Prout cur RES e.Res> :
     , <First (e.LeftX)> : (e.LF) e.LR
     , <First (e.RightX)> : (e.RF) e.RR
     , e.LF : {
@@ -165,7 +164,7 @@ GetInequality {
         e.NotEmpty1
         , e.RF : {
             /* empty */ = <GetInequality (e.Op) (e.LR) () (e.Res)>;
-            e.NotEmpty2 = <Prout 3 '('e.Op' 'e.LF' 'e.RF')'><GetInequality (e.Op) (e.LR) (e.RR) ('('e.Op' 'e.LF' 'e.RF') . 'e.Res)>;
+            e.NotEmpty2 = <GetInequality (e.Op) (e.LR) (e.RR) ('('e.Op' 'e.LF' 'e.RF') . 'e.Res)>;
         };
     };
 }
@@ -181,6 +180,7 @@ GetInequality {
 
 #####################################################################################
 */
+
 First {
     ('('e.Begin' . 'e.Rest) = (e.Begin)'('e.Rest;
     ('('e.Last')') = (e.Last);
