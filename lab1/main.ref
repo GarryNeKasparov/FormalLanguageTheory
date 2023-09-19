@@ -1,5 +1,8 @@
 $ENTRY Go {
-    = <Prout <Solve ('./tests/1.txt') ('./tests/1_out.smt2') 1 (2)>>;
+*    = <Prout <Solve ('./tests/1.txt') ('./tests/1_out.smt2') 1 (2)>>;
+    , <Arg 1> : e.TestPath
+    , <Arg 2> : e.SmtPath
+    = <Solve (e.TestPath) (e.SmtPath) 1 (2)>;
 *    = <Prout <OrdinalRules '(2 . 6 . 5) + (8 . 7)'>>;
 *    = <First ('(bA . aA . dA . cA ) . (bC . aC . dC . cC )')>;
 }
@@ -12,12 +15,14 @@ Solve {
     , <CreateInts e.LeftRules ()> : e.LeftVars
     , <CreateInts e.RightRules ()> : e.RightVars
     , <ConcatenateVars (e.LeftVars) (e.RightVars)> : e.AllVars
-*    , <Prout e.LeftVars e.RightVars> :
+    , <Prout vars '\n'e.LeftVars vs e.RightVars'\n'> :
     , <Open 'w' s.OutStream e.OutFile> :
-    , <GenerateInEq (e.LeftRules) (e.RightRules) ()> : ' '(e.Inequations) /* не смог найти, откуда берется пробел*/
-**    = <Prout e.Inequations>;
+    , <GenerateInEq (e.LeftRules) (e.RightRules) ()> : e.Inequations
+*    , <Prout e.Inequations> :
 **    , <First (e.Inequations)> : (e.1) e.2 = <Prout e.1>;
-    = <GenerateSMT ('('e.Inequations')') (e.AllVars) s.OutStream>;
+    , <GenerateSMT ('('e.Inequations')') (e.AllVars) s.OutStream> :
+    , <Close s.InStream> :
+    , <Close s.OutStream> : = ;
 }
 
 ConcatenateVars {
@@ -28,6 +33,7 @@ ConcatenateVars {
 GenerateSMT {
     (e.Inequations) (e.AllVars) s.OutStream
      , <SetLogic s.OutStream> :
+     , <Prout all vars e.AllVars> :
      , <DeclareFun ('('e.AllVars')') s.OutStream> :
      , <AssertInEq (e.Inequations) s.OutStream> :
      , <CheckAndGet s.OutStream> : = ;
@@ -41,11 +47,12 @@ DeclareFun {
     (e.Arr) s.OutStream
 *    , <Prout e.Arr> :
     , <First (e.Arr)> : (e.FElem) e.RElem
-*    , <Prout e.FElem e.RElem> :
+    , <Prout e.FElem e.RElem> :
     , e.FElem : {
         = ;
         e.NotEmpty
             , <Putout s.OutStream '(declare-fun 'e.FElem'() Int)'> :
+            , <Putout s.OutStream '(assert (> 'e.FElem' 0))'> :
             = <DeclareFun (e.RElem) s.OutStream>;
     };
 }
@@ -79,12 +86,12 @@ CheckAndGet {
 }
 /* ########################################################## */
 GenerateInEq {
-    (( )) (( )) (e.Res) = e.Res;
+    (( )) (( )) (e.Res' . ') = e.Res;
     (((e.LeftRule)e.LeftRules)) (((e.RightRule)e.RightRules)) (e.Res)
     , <CalcFunc (e.LeftRule) ()> : e.CalculatedLeft
     , <CalcFunc (e.RightRule) ()> : e.CalculatedRight
-    ,<ParseAnswer (e.CalculatedLeft' | 'e.CalculatedRight)> : e.Parsed
-        =<GenerateInEq ((e.LeftRules)) ((e.RightRules)) (e.Res' 'e.Parsed)>;
+    ,<ParseAnswer (e.CalculatedLeft' | 'e.CalculatedRight)> : (e.Parsed)
+        = <GenerateInEq ((e.LeftRules)) ((e.RightRules)) (e.Res e.Parsed' . ')>;
 }
 
 CalcFunc {
@@ -125,21 +132,21 @@ ParseAnswer {
 
 GetInequalities {
     (('('e.LeftX' , 'e.LeftB')') ('('e.RightX' , 'e.RightB')'))
-    =
-    (<GetInequality ('>') (e.LeftX) (e.RightX) ()>' . '
+    = (<GetInequality ('>') (e.LeftX) (e.RightX) ()>' . '
      <GetInequality ('>=') (e.LeftB) (e.RightB) ()>);
 }
 
 GetInequality {
     (e.Op) () () (e.Res' . ') = e.Res;
-    (e.Op) (e.Single) () (e.Res)
+    (e.Op) (e.Single) () (e.Res) /* возможно можно убрать */
         , <First (e.Single)> : (e.SF) e.SR
         , e.SF : {
              = e.Res;
-            e.NotEmpty = <GetInequality (e.Op) (e.SR) () ('('e.Op' 'e.SF' 0)')>;
+            e.NotEmpty = <GetInequality (e.Op) (e.SR) () ('('e.Op' 'e.SF' 0) . 'e.Res)>;
         };
 
     (e.Op) (e.LeftX) (e.RightX) (e.Res)
+    , <Prout cur RES e.Res> :
     , <First (e.LeftX)> : (e.LF) e.LR
     , <First (e.RightX)> : (e.RF) e.RR
     , e.LF : {
@@ -147,7 +154,7 @@ GetInequality {
         e.NotEmpty1
         , e.RF : {
              = <GetInequality (e.Op) (e.LR) () (e.Res)>;
-            e.NotEmpty2 = <GetInequality (e.Op) (e.LR) (e.RR) ('('e.Op' 'e.LF' 'e.RF') . (>= 'e.RF' 0) . 'e.Res)>;
+            e.NotEmpty2 = <Prout 3 '('e.Op' 'e.LF' 'e.RF')'><GetInequality (e.Op) (e.LR) (e.RR) ('('e.Op' 'e.LF' 'e.RF') . 'e.Res)>;
         };
     };
 }
@@ -227,8 +234,10 @@ CreateInts {
 
 BuildFuncForString {
     (s.F e.RestChars) (e.AllVars)
-    , <BuildFunc s.F> : e.Vars
-    = <BuildFuncForString (e.RestChars) (e.Vars' . 'e.AllVars)>;
+    , <BuildFunc s.F> : {
+        /* empty */ = <BuildFuncForString (e.RestChars) (e.AllVars)>;
+        e.Vars = <BuildFuncForString (e.RestChars) (e.Vars' . 'e.AllVars)>;
+    };
     ( ) (e.AllVars) = e.AllVars;
 
 }
