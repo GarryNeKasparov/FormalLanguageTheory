@@ -27,6 +27,7 @@ Solve {
 
 ConcatenateVars {
     (e.Arr1) (e.Arr2' . ') = e.Arr1 e.Arr2;
+    (e.Arr1) () = e.Arr1;
 }
 
 /* ################################################ */
