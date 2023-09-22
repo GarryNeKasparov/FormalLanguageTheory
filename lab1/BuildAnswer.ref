@@ -35,5 +35,5 @@ CollectVars {
 }
 
 PrintInterpolation {
-    s.F (e.b' 'e.a' 'e.d' 'e.c) = <Prout s.F'(x) = (w * 'e.b' + 'e.a') * x + (w * 'e.d' + 'e.c')'>;
+    s.F (e.b' 'e.a' 'e.d' 'e.c) = <Prout s.F'(x) = (w * 'e.a' + 'e.b') * x + (w * 'e.c' + 'e.d')'>;
 }

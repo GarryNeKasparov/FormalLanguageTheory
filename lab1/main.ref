@@ -25,6 +25,7 @@ Solve {
     GenerateSMT - вызывает в нужном порядке остальные функции
     SetLogic    - устанавливает логику
     DeclareFun  - объявляет коэффиценты, а также задает условие неотрицательности
+    AssertFun   - накладывает условия на коэффиценты
     AssertInEq  - задает неравенства на коэффиценты
     CheckAndGet - проверка завершаемость и получение модели
 
@@ -35,6 +36,7 @@ GenerateSMT {
     (e.Inequations) (e.AllVars) s.OutStream
      , <SetLogic s.OutStream> :
      , <DeclareFun ('('e.AllVars')') s.OutStream> :
+     , <AssertFun (e.AllVars) s.OutStream> :
      , <AssertInEq (e.Inequations) s.OutStream> :
      , <CheckAndGet s.OutStream> : = ;
 }
@@ -50,21 +52,29 @@ DeclareFun {
         /* empty */ = ;
         e.NotEmpty
             , <Putout s.OutStream '(declare-fun 'e.FElem'() Int)'> :
-            , <Putout s.OutStream '(assert (> 'e.FElem' 0))'> :
             = <DeclareFun (e.RElem) s.OutStream>;
     };
 }
 
-DeclareFunFromArr {
-    (e.Arr) s.OutStream
-    , <First (e.Arr)> : (e.FElem) e.RElem
-    , e.FElem : {
-        /* empty */ = ;
-        e.NotEmpty
-        , <Putout s.OutStream '(declare-fun 'e.FElem'() Int)'> :
-        = <DeclareFunFromArr (e.RElem) s.OutStream>;
-    };
-
+AssertFun {
+    ('b's.F' . a's.F' . d's.F' . c's.F' . 'e.Arr) s.OutStream
+    = <Putout s.OutStream
+    '(assert '
+       '(and '
+          '(or (> b's.F' 0) (> a's.F' 0) (> c's.F' 0) (> d's.F' 0)) '
+          '(>= b's.F' 0) (>= a's.F' 0) (>= c's.F' 0) (>= d's.F' 0)'
+        ')'
+    ')'>
+    <AssertFun (e.Arr) s.OutStream>;
+    ('b's.F' . a's.F' . d's.F' . c's.F) s.OutStream
+    = <Putout s.OutStream
+    '(assert '
+        '(and '
+            '(or (> b's.F' 0) (> a's.F' 0) (> c's.F' 0) (> d's.F' 0)) '
+            '(>= b's.F' 0) (>= a's.F' 0) (>= c's.F' 0) (>= d's.F' 0)'
+         ')'
+    ')'>;
+    () s.OutStream = ;
 }
 
 AssertInEq {
@@ -143,36 +153,49 @@ ParseAnswer {
 
 GetInequalities {
     (('('e.LeftX' , 'e.LeftB')') ('('e.RightX' , 'e.RightB')'))
-    = (<GetInequality ('>') (e.LeftX) (e.RightX) ()>' . '
+    =
+    (<GetInequality ('>=') (e.LeftX) (e.RightX) ()>' . '
+     <ToOneOR <GetInequality ('>') (e.LeftX) (e.RightX) ()>>' . '
      <GetInequality ('>=') (e.LeftB) (e.RightB) ()>);
 }
 
 GetInequality {
     (e.Op) () () (e.Res' . ') = e.Res;
-    (e.Op) (e.Single) () (e.Res) /* возможно можно убрать */
-        , <First (e.Single)> : (e.SF) e.SR
-        , e.SF : {
-            /* empty */ = e.Res;
-            e.NotEmpty = <GetInequality (e.Op) (e.SR) () ('('e.Op' 'e.SF' 0) . 'e.Res)>;
-        };
+
+    (e.Op) (e.Single) () (e.Res)
+    , <First (e.Single)> : (e.SF) e.SR
+    , e.SF : {
+        /* empty */ = e.Res;
+        e.NotEmpty = <GetInequality (e.Op) (e.SR) () ('(> 'e.SF' 0) . 'e.Res)>;
+    };
+
+    (e.Op) () (e.Single) (e.Res)
+    , <First (e.Single)> : (e.SF) e.SR
+    , e.SF : {
+        /* empty */ = e.Res;
+        e.NotEmpty = <GetInequality (e.Op) () (e.SR) ('(= 'e.SF' 0) . 'e.Res)>;
+    };
 
     (e.Op) (e.LeftX) (e.RightX) (e.Res)
     , <First (e.LeftX)> : (e.LF) e.LR
     , <First (e.RightX)> : (e.RF) e.RR
-    , e.LF : {
-        /* empty */ = <GetInequality (e.Op) (e.RR) () (e.Res)>;
-        e.NotEmpty1
-        , e.RF : {
-            /* empty */ = <GetInequality (e.Op) (e.LR) () (e.Res)>;
-            e.NotEmpty2 = <GetInequality (e.Op) (e.LR) (e.RR) ('('e.Op' 'e.LF' 'e.RF') . 'e.Res)>;
+    , e.LR : {
+        /* empty */
+        , e.RR : {
+            /* empty */ = <GetInequality (e.Op) () () ('('e.Op' 'e.LF' 'e.RF') . 'e.Res)>;
+            e.NotRREmpty1 = <GetInequality (e.Op) () (e.RR) ('('e.Op' 'e.LF' 'e.RF') . 'e.Res)>;
         };
+        e.NotLREmpty = <GetInequality (e.Op) (e.LR) (e.RR) ('('e.Op' 'e.LF' 'e.RF') . 'e.Res)>;
     };
+
 }
 
 /*
 #####################################################################################
 
     Вспомогательные функции:
+    ToOneOr         - получает список условий и переводит его в одно OR условие
+    FlatList        - "раскрывает список" (заменяет "." на " " с доп условием)
     First           - получает первый элемент в списке (во всем коде введен единый
                       формат разделения через ".")
     ConcatenateVars - используется лишь единожды, склеивает два списка (вероятно,
@@ -181,10 +204,31 @@ GetInequality {
 #####################################################################################
 */
 
+ToOneOR {
+    e.List = '(or '<FlatList e.List>')';
+}
+
+FlatList {
+    e.Begin' . 'e.Rest
+    , e.Begin : {
+        '(= 'e.Some1')' = <FlatList e.Rest>;
+        '(> 'e.Some2')' = e.Begin' '<FlatList e.Rest>;
+    };
+    e.NoDots = e.NoDots;
+}
+
 First {
     ('('e.Begin' . 'e.Rest) = (e.Begin)'('e.Rest;
     ('('e.Last')') = (e.Last);
     () = () ();
+}
+
+Last {
+    (e.List)
+    , <First (e.List)> : {
+        (e.Last) = e.Last;
+        (e.Begin) e.Rest = <Last (e.Rest)>;
+    };
 }
 
 ConcatenateVars {
