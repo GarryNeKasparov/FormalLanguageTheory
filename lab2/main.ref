@@ -1,0 +1,156 @@
+$ENTRY Go {
+    = <Prout <Parse 1>>;
+}
+
+* (a|(ab))∗b+
+
+Parse {
+    s.Stream
+    , <Open 'r' s.Stream './tests/1.txt'> :
+    , <Get s.Stream> : e.Regex = <Regex (() ()) e.Regex>;
+}
+
+Regex {
+    (e.Scanned) (e.Tree) ERR e.Msg = (e.Tree) ERR e.Msg;
+    (() ()) (Term (e.Parsed)) e.Tokens
+        = <Regex (Term (e.Parsed)) e.Tokens>;
+    (() ()) e.Tokens = <Regex (() ()) <Term (() ()) e.Tokens>>;
+
+    (Term (e.Tree)) '|'e.Tokens
+        = <Regex (Term Binary ('(or 'e.Tree)) e.Tokens>;
+    (Term (e.Tree)) '#'e.Tokens
+        = <Regex (Term Binary ('(sfl 'e.Tree)) e.Tokens>;
+    (Term (e.Tree)) e.Tokens = (Regex (e.Tree)) e.Tokens;
+
+    (Term Binary (e.Tree)) (Regex (e.Parsed)) e.Tokens
+        = <Regex (Term Binary Regex (e.Tree' 'e.Parsed')')) e.Tokens>;
+    (Term Binary (e.Tree)) e.Tokens
+        = <Regex (Term Binary (e.Tree)) <Regex (() ()) e.Tokens>>;
+
+    (Term Binary Regex (e.Tree)) e.Tokens = (Regex <Normalize (e.Tree)>) e.Tokens;
+    (Term (e.Tree)) e.Tokens = (Regex (e.Tree)) e.Tokens;
+}
+
+Normalize {
+    /* ? maybe should just (e.Op1 e.Op1Arg (e.Op2 e.Op2Arg1 e.Op2Arg2))
+       -> no because con has a higher priority
+    */
+    ('(sfl 'e.Sfl1' (or 'e.Or1' 'e.Or2'))')
+        = <Prout '\n'Expr '(sfl 'e.Sfl1' (or 'e.Or1' 'e.Or2'))\n'
+            ShuffleArg1 e.Sfl1'\n'OrArg1 e.Or1'\n'OrArg2 e.Or2'\n'
+            Result '(or (sfl 'e.Sfl1' 'e.Or1') 'e.Or2')\n\n'>
+        ('(or (sfl 'e.Sfl1' 'e.Or1') 'e.Or2')');
+    ('(or 'e.OutOr1 '(or 'e.InOr1' 'e.InOr2'))')
+        = <Prout '\n'Expr '(sfl 'e.OutOr1' (or 'e.InOr1' 'e.InOr2'))\n'
+              ShuffleArg1 e.OutOr1'\n'OrArg1 e.InOr1'\n'OrArg2 e.InOr2'\n'
+              Result '(or (sfl 'e.OutOr1' 'e.InOr1') 'e.InOr2')\n\n'>
+        ('(or (or 'e.OutOr1' 'e.InOr1') 'e.InOr2')');
+    e.Else = e.Else;
+}
+
+Term {
+    ((e.Scanned) (e.Tree)) ERR e.Msg = (e.Tree) ERR e.Msg;
+    (() (e.Tree)) (Factor (e.Parsed)) e.Tokens
+        = <Term (Factor (e.Parsed)) e.Tokens>;
+    (() (e.Tree)) e.Tokens
+        = <Term (() (e.Tree)) <Factor (() (e.Tree)) e.Tokens>>;
+
+    (Factor (e.Tree))'|'e.Tokens = (Term (e.Tree)) '|'e.Tokens;
+    (Factor (e.Tree))'#'e.Tokens = (Term (e.Tree)) '#'e.Tokens;
+
+    (Factor (e.Tree)) = (Term (e.Tree));
+    (Factor (e.Tree)) e.Tokens
+        = <Term (() (e.Tree)) <Factor (() (e.Tree)) e.Tokens>>;
+}
+
+Factor {
+    ((e.Scanned) (e.Tree)) ERR e.Msg = (e.Tree) ERR e.Msg;
+
+    (() ()) (Base (e.Parsed)) e.Tokens
+            = <Prout tree ()' 'Parsed is' '(e.Parsed)' 'and tokens' 'e.Tokens>
+            <Factor (Base (e.Parsed)) e.Tokens>;
+
+    (() (e.Tree)) (Base (e.Parsed)) e.Tokens
+            = <Prout tree (e.Tree)' 'Parsed is' '(e.Parsed)' 'and tokens' 'e.Tokens>
+            <Factor (Base ('(con ' e.Tree' 'e.Parsed')')) e.Tokens>;
+
+    (() (e.Tree)) e.Tokens = <Factor (() (e.Tree)) <Base (() (e.Tree)) e.Tokens>>;
+
+    (Base (e.Tree)) e.Tokens = (Factor (e.Tree)) e.Tokens;
+}
+
+Base {
+    ((e.Scanned) (e.Tree)) ERR e.Msg = (e.Tree) ERR e.Msg;
+    (() (e.Tree)) s.Char e.Tokens = <Base (s.Char (e.Tree)) e.Tokens>;
+    (s.Char (e.Tree)) e.Tokens
+    , <IsAlpha s.Char> : {
+        True = (Base (s.Char)) e.Tokens;
+        False = (e.Tree) ERR s.Char' 'does not belong to alphabet;
+    };
+    (() (e.Tree)) = (Base (e.Tree));
+}
+
+IsAlpha {
+    s.Char
+    , <Ord s.Char> : e.Ord
+    , <Compare e.Ord <Ord '{'>> : {
+        '-'
+        , <Compare e.Ord <Ord '`'>> : {
+            '+' = True;
+            e.Else = False;
+        };
+        e.Else = False;
+    };
+
+
+}
+Shuffle {
+    (e.R) (eps) = e.R;
+    (e.R) (' ') = ept;
+    (s.F1 e.R1) (s.F2 e.R2) = s.F1 <Shuffle (e.R1) (s.F2 e.R2)> '|' s.F2 <Shuffle (s.F1 e.R1) (e.R2)>;
+}
+
+BrzDeriv {
+    (s.d) (s.d) = eps;
+    (s.d) (e.R1'|'e.R2) = <Unite (<BrzDeriv (s.d) (e.R1)>) <BrzDeriv (s.d) (e.R2)>>;
+    (s.d) (e.R1''e.R2)
+    , <Prout e.R1' 'e.R2> :
+    , <Lambda e.R1> : {
+        eps = <Unite (<Concat (<BrzDeriv (s.d) (e.R1)>) e.R2>) <BrzDeriv (s.d) (e.R2)>>;
+        ept = <Concat (<BrzDeriv (s.d) (e.R1)>) e.R2>;
+    };
+    (s.d) (e.R1'#'e.R2) = <Unite (<Shuffle (<BrzDeriv (s.d) (e.R1)>) (e.R2)>)
+                                  <Shuffle (e.R1) (<BrzDeriv (s.d) (e.R2)>)>>;
+
+    (s.d) (s.R'*') = <Concat (<BrzDeriv (s.d) (s.R)>) s.R'*'>;
+    (s.d) (s.R'+') = <BrzDeriv (s.d) (s.R s.R'*')>;
+
+}
+
+Concat {
+    (eps) e.Regex = e.Regex;
+    (ept) e.Regex = ept;
+    (e.Regex) eps = e.Regex;
+    (e.Regex) ept = ept;
+    (e.R1) e.R2 = e.R1''e.R2;
+}
+
+Lambda {
+    e.Regex'*' = eps;
+    eps'|'e.Regex = eps;
+    e.Regex'|'eps = eps;
+    e.NoEps = ept;
+}
+
+Unite {
+    (e.Regex) ept = e.Regex;
+    (ept) e.Regex = e.Regex;
+    (e.Regex1) e.Regex2 = <ACI (e.Regex1'|'e.Regex2)>;
+}
+
+ACI {
+    (e.R1'|'e.R1) = e.R1;
+    (e.R1'|'e.R2) = (e.R1'|'e.R2);
+}
+
+
