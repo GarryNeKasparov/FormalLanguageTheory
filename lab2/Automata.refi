@@ -1,0 +1,32 @@
+$ENUM SymTable;
+
+/**
+  <SymTable-Create> == t.SymTable
+*/
+$ENTRY SymTable-Create {
+  = [SymTable];
+}
+
+/**
+  <SymTable-Lookup t.SymTable e.Name>
+    == Success e.Value
+    == Fails
+*/
+$ENTRY SymTable-Lookup {
+  [SymTable e.Items-B ((e.Keys) e.State) e.Items-E] e.State
+    = Success e.Keys;
+
+  [SymTable e.Items] e.State = Fails;
+}
+
+/**
+  <SymTable-Update t.SymTable (e.Name) e.Value> == t.SymTable
+*/
+$ENTRY SymTable-InsertByState {
+  [SymTable e.Items-B (e.Keys e.State) e.Items-E]
+  (e.Key) e.State
+    = [SymTable e.Items-B ((e.Keys (e.Key)) e.State) e.Items-E];
+
+  [SymTable e.Items] (e.Key) e.State
+    = [SymTable e.Items ((e.Key) e.State)];
+}
