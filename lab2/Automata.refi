@@ -1,32 +1,252 @@
-$ENUM SymTable;
+$ENUM Automata;
 
-/**
-  <SymTable-Create> == t.SymTable
-*/
-$ENTRY SymTable-Create {
-  = [SymTable];
+$ENTRY Automata-Create {
+    (e.Vars) (e.InitState) e.Accept
+    = [Automata (0 MaxPos) (e.Vars Alphabet)
+      (<IFE (e.Accept) (True) ((0))>Accepting) (Transitions)
+      ((<Symb 0> (e.InitState)) States)];
 }
 
-/**
-  <SymTable-Lookup t.SymTable e.Name>
-    == Success e.Value
-    == Fails
-*/
-$ENTRY SymTable-Lookup {
-  [SymTable e.Items-B ((e.Keys) e.State) e.Items-E] e.State
-    = Success e.Keys;
 
-  [SymTable e.Items] e.State = Fails;
+$ENTRY Automata-GetPos {
+    [Automata e.Properties (e.States States)]
+    e.To
+    , e.States : {
+        e.States-B (e.Pos (e.To)) e.States-E = True e.Pos;
+        e.States^ = False;
+    };
 }
 
-/**
-  <SymTable-Update t.SymTable (e.Name) e.Value> == t.SymTable
-*/
-$ENTRY SymTable-InsertByState {
-  [SymTable e.Items-B (e.Keys e.State) e.Items-E]
-  (e.Key) e.State
-    = [SymTable e.Items-B ((e.Keys (e.Key)) e.State) e.Items-E];
+$ENTRY Automata-AddTransition {
+    [Automata e.Properties-B (e.Transitions Transitions) e.Properties-E]
+    e.Transition
+    , e.Transitions : {
+        e.Transitions-B (e.Transition) e.Transitions-E = ;
+        e.Transitions^ = (e.Transition);
+    };
 
-  [SymTable e.Items] (e.Key) e.State
-    = [SymTable e.Items ((e.Key) e.State)];
 }
+
+$ENTRY Automata-Insert {
+    [Automata (e.Num MaxPos) (e.Vars Alphabet) (e.AcList Accepting) (e.Transitions Transitions) (e.States States)]
+    (s.Key) (e.From) e.To (e.Accepting)
+
+    , <Automata-GetPos
+    [Automata (e.Num MaxPos) (e.Vars Alphabet) (e.AcList Accepting) (e.Transitions Transitions) (e.States States)]
+    e.From> : True e.FromPos
+
+    , <Automata-GetPos
+    [Automata (e.Num MaxPos) (e.Vars Alphabet) (e.AcList Accepting) (e.Transitions Transitions) (e.States States)]
+    e.To> : {
+        True e.ToPos
+        =
+*        = <Prout e.FromPos':'s.Key'>'e.ToPos>
+            [Automata
+            (e.Num MaxPos)
+            (e.Vars Alphabet)
+            (e.AcList Accepting)
+            (e.Transitions
+                <Automata-AddTransition
+                    [Automata (e.Num MaxPos) (e.Vars Alphabet) (e.AcList Accepting) (e.Transitions Transitions) (e.States States)]
+                    e.FromPos':'s.Key'>'e.ToPos>
+            Transitions)
+            (e.States States)];
+
+        False
+        , <Add e.Num 1> : e.ToPos
+        =
+*        = <Prout e.FromPos':'s.Key'>'e.ToPos>
+        [Automata
+            (e.ToPos MaxPos)
+            (e.Vars Alphabet)
+            (e.AcList <IFE (e.Accepting) (True) ((e.ToPos))> Accepting)
+            (e.Transitions
+                <Automata-AddTransition
+                    [Automata (e.Num MaxPos) (e.Vars Alphabet) (e.AcList Accepting) (e.Transitions Transitions) (e.States States)]
+                    e.FromPos':'s.Key'>'<Symb e.ToPos>>
+            Transitions)
+            (e.States (<Symb e.ToPos> (e.To)) States)];
+    };
+}
+
+$ENTRY Automata-PrettyPrint {
+    [Automata (e.Num MaxPos) (e.Vars Alphabet) (e.AcList Accepting) (e.Transitions Transitions) (e.States States)]
+    = <Prout '#states\n'
+              <Add e.Num 1>'\n'
+              '#initial\n'
+              '0\n'
+              '#accepting\n'
+              <ListFlatln e.AcList>
+              '#alphabet\n'
+              <ListFlatln e.Vars>
+              '#transitions\n'
+              <ListFlatln e.Transitions>>;
+}
+
+$ENTRY Automata-ToRegex {
+    [Automata e.Prop-B (e.AcList Accepting) (e.Transitions Transitions) e.Prop-E]
+    , [Automata
+        e.Prop-B
+        (('-2') Accepting)
+        (('-1:'eps'>0') e.Transitions <AppendFinals e.AcList> Transitions)
+        e.Prop-E]
+        : [Automata e.Prop-B (e.AcList^ Accepting) (e.Transitions^ Transitions) e.Prop-E]
+    , <Br 'New='> :
+    , <Automata-ExcludeStates
+        [Automata e.Prop-B (e.AcList Accepting) (e.Transitions Transitions) e.Prop-E]>
+        : [Automata e.Prop-B^ (e.Transitions^ Transitions) e.Prop-E^]
+    = e.Transitions;
+
+}
+$ENTRY Automata-ExcludeStates_ {
+    [Automata (e.MaxPos MaxPos) e.Prop-E]
+    e.CurState
+    , <Automata-PrettyPrint
+    [Automata (e.MaxPos MaxPos) e.Prop-E]> :
+   , <Prout WTWETWETW state e.CurState e.MaxPos> :
+    , <Compare e.CurState e.MaxPos> : {
+        '+' = <Automata-DeleteState [Automata (e.MaxPos MaxPos) e.Prop-E] <Symb 0>>;
+        s.Else
+        , <Automata-DeleteState [Automata (e.MaxPos MaxPos) e.Prop-E] <Symb e.CurState>> : t.Automata
+        = <Automata-ExcludeStates_ t.Automata <Add e.CurState 1>>;
+
+    };
+}
+
+$ENTRY Automata-ExcludeStates {
+    [Automata e.Prop]
+    = <Automata-ExcludeStates_ [Automata e.Prop] 1>;
+}
+
+$ENTRY Automata-DeleteState {
+    [Automata e.Prop-B (e.Transitions Transitions) e.Prop-E]
+    e.To
+    , e.Transitions : {
+        e.Tr-B (e.To':'e.T'>'e.To) e.Tr-E = e.T;
+        e.NoCicle = ;
+        }
+    : e.T
+    , <FindTrans e.Transitions (e.To)> : e.Trans
+    , <Prout all trans e.Trans> :
+    , <Filter <Set <GetAllPairs e.Trans (e.Trans)>> (e.To)> : e.AllPairs
+    , <Prout all pairs e.AllPairs> :
+    , <CreateTransForPairs e.AllPairs (e.T)> : e.NewTrans
+    , <Prout new e.NewTrans> :
+    , <InsertNewTrans e.Transitions (e.NewTrans)> : e.Transitions^
+    , <Prout inserted e.Transitions> :
+    , <RemoveTrans e.Transitions (e.To)> : e.Transitions^
+    , <Prout removed e.Transitions> :
+    =
+    [Automata e.Prop-B (e.Transitions Transitions) e.Prop-E];
+}
+
+RemoveTrans {
+    (e.To) = ;
+    (e.To':'e.T'>'e.q2) e.Transitions (e.To) = <RemoveTrans e.Transitions (e.To)>;
+    (e.q1':'e.T'>'e.To) e.Transitions (e.To) = <RemoveTrans e.Transitions (e.To)>;
+    (e.q1':'e.T1'>'e.q2) e.Transitions (e.q1':'e.T2'>'e.q2) e.T-E (e.To)
+    , (e.T1) e.T2 : {
+          (eps) eps = eps;
+          (e.T) eps = e.T;
+          (eps) e.T = e.T;
+          () e.T = e.T;
+          (e.T) = e.T;
+          (e.T11) e.T22 = e.T11'|'e.T22;
+    } : e.TT
+    = (e.q1':'e.TT'>'e.q2) <RemoveTrans e.Transitions e.T-E (e.To)>;
+    (e.q1':'e.T'>'e.q2) e.Transitions (e.To) = (e.q1':'e.T'>'e.q2) <RemoveTrans e.Transitions (e.To)>;
+    (e.Some) e.Transitions (e.To) = e.Some <RemoveTrans e.Transitions (e.To)>;
+}
+
+InsertNewTrans {
+    e.Tr () = e.Tr;
+    (e.NewTrans) = e.NewTrans;
+    (e.q1':'e.T1'>'e.q2) e.Transitions ((e.q1':'e.T2'>'e.q2) e.NewTrans)
+    , (e.T1) e.T2 : {
+        (eps) eps = eps;
+        () e.T = e.T;
+        (e.T) = e.T;
+        (e.T11) e.T22 = (e.T11'|'e.T22);
+    } : e.TT
+    = (e.q1':'e.TT'>'e.q2) <InsertNewTrans e.Transitions (e.NewTrans)>;
+
+    (e.q1':'e.T1'>'e.q2) e.Transitions ((e.q3':'e.T2'>'e.q4) e.NewTrans)
+    =  (e.q1':'e.T1'>'e.q2) <InsertNewTrans e.Transitions ((e.q3':'e.T2'>'e.q4) e.NewTrans)>;
+}
+
+CreateTransForPairs {
+    (e.T) = ;
+
+    ((e.q1':'e.phi'>'e.q2) (e.q2':'e.psi'>'e.q3)) e.Pairs (e.T)
+    , e.phi <IFE (e.T) () () (e.T)'*'> : e.FT
+    , (e.FT) e.psi : {
+        (e.Some eps) eps = e.Some;
+        (eps e.Some) eps = e.Some;
+        (e.Some) eps = e.Some;
+        (eps) e.Some = e.Some;
+        () e.Some = e.Some;
+        (e.Some) = e.Some;
+        (s.Char) e.Some = s.Char e.Some;
+        (e.Some1) e.Some2 = e.Some1 e.Some2;
+    } : e.NT
+    , <Prout e.FT ' and ' e.psi> :
+    = (e.q1':'e.NT'>'e.q3)
+      <CreateTransForPairs e.Pairs (e.T)>;
+}
+
+Filter {
+    (e.To) = ;
+    ((e.To e.Some1) (e.Some2))e.Pairs (e.To) = <Filter e.Pairs (e.To)>;
+    (e.SomePair) e.Pairs (e.To) = (e.SomePair) <Filter e.Pairs (e.To)>;
+}
+
+Set {
+    = ;
+    (e.R) e.B (e.R) e.E = (e.R) <Set e.B e.E>;
+    (e.R) e.B e.E = (e.R) <Set e.B e.E>;
+}
+
+GetAllPairs_ {
+    (e.q1':'e.t1'>'e.q2) e.T-E (e.q2':'e.t2'>'e.q3) e.T-EE
+    = ((e.q1':'e.t1'>'e.q2)(e.q2':'e.t2'>'e.q3))
+      <GetAllPairs_ (e.q1':'e.t1'>'e.q2) e.T-EE>;
+    (e.q1':'e.t1'>'e.q2) e.Rest = ;
+}
+
+GetAllPairs {
+    (e.Trans) e.TransR (e.AllTrans) = <Prout trans e.Trans ' in 'e.AllTrans><GetAllPairs_ (e.Trans) e.AllTrans> <GetAllPairs e.TransR (e.AllTrans)>;
+    (e.AllTrans) = ;
+
+}
+
+FindTrans {
+    (e.To) =;
+    (e.To':'e.T'>'e.To) e.Transitions (e.To) = <FindTrans e.Transitions (e.To)>;
+    (e.To':'e.T'>'e.Some) e.Transitions (e.To) = (e.To':'e.T'>'e.Some) <FindTrans e.Transitions (e.To)>;
+    (e.Some':'e.T'>'e.To) e.Transitions (e.To) = (e.Some':'e.T'>'e.To) <FindTrans e.Transitions (e.To)>;
+    (e.Some) e.Transitions (e.To) = <FindTrans e.Transitions (e.To)>;
+}
+IFE {
+    () () (e.Res1) e.Res2 = e.Res1;
+    (e.Cond) () (e.Res1) e.Res2 = e.Res2;
+    (e.Cond) (e.Cond) (e.Res1) e.Res2 = e.Res1;
+    (e.Expr) (e.Cond) (e.Res1) e.Res2 = e.Res2;
+}
+
+AppendFinals {
+    = ;
+    (e.Final) e.Finals
+    , <Type e.Final> : {
+        'N0'e.Final = <Symb e.Final>;
+        e.Macro = e.Final;
+    } : e.Final^
+    = (e.Final':'eps'>-2') <AppendFinals e.Finals>;
+
+}
+
+ListFlatln {
+    /* empty */ = ;
+    (e.Item) e.List = e.Item'\n'<ListFlatln e.List>;
+    s.Char e.List = s.Char'\n'<ListFlatln e.List>;
+}
+

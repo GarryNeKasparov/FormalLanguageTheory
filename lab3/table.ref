@@ -1,0 +1,135 @@
+$ENUM Table;
+$ENUM ExdTable;
+
+$ENTRY ExdTable-Create {
+    e.Alphabet
+    = <Br 'Abt='>
+    [ExdTable (<Table-Create>) (<Table-Create>)];
+}
+
+$ENTRY Table-Create {
+    = [Table () () ()];
+}
+
+$ENTRY Table-Update {
+    [Table (e.SS) (e.E) (e.V)] e.CrEx
+    , <AddSymb (e.CrEx) <Cp 'Abt'>> : e.NewP
+    , <ComputeRow (e.NewP) e.E> : e.NewRow
+    = [Table (e.SS (e.NewP)) (e.E) (e.V (e.NewRow))];
+}
+
+AddSymb {
+    (e.Word) /*empty*/ = ;
+    (e.Word) s.Char e.Abt
+    = (e.Word s.Char) <AddSymb (e.Word) e.Abt>;
+}
+
+$ENTRY ExdTable-Insert {
+    [ExdTable [Table (e.S) (e.E) (e.V2)] t.T]
+    (0) e.Prefix
+    , <ComputeRow (e.Prefix) e.E> : e.NewRow
+    , <ExdTable-Update t.T > : t.T^
+    = [ExdTable [Table (e.S (e.Prefix)) (e.E) (e.V2 (e.NewRow))] t.T];
+
+
+    [ExdTable [Table (e.S) (e.E) (e.V1)] [Table (e.SS) (e.E) (e.V2)] ]
+    (1) e.Suffix
+    , <ComputeRow (e.Suffix) e.E> : e.NewRow
+    , e.E e.Suffix : e.E^
+    , e.V2 e.NewRow : e.V2^
+    = [ExdTable [Table (e.SS) (e.E) (e.V1)]];
+
+}
+
+Oracle-MEMBER {
+    e.W = 1;
+}
+
+ComputeRow {
+    (e.Prefix) /*empty*/ = ;
+    (e.Prefix) (e.Suffix) e.E
+    = (<Oracle-MEMBER e.Prefix e.Suffix> <ComputeRow (e.Prefix) e.E>);
+
+}
+
+$ENTRY ExdTable-IsClosed {
+    [ExdTable ([Table (e.S) (e.E) (e.V1)]) ([Table (e.SS) (e.E) (e.V2)])]
+    = <IsClosedRows (e.V1) e.V2>;
+}
+
+* bugs here maybe
+Items {
+    (e.S' 'e.E' 'e.V) = e.V;
+    (e.S' 'e.E' 'e.V) e.R-E = (e.V <Items e.R-E>);
+
+}
+CompareItems {
+    (e.S1' 'e.E1' 's.V) e.S2' 'e.E2' 's.V = True;
+    (e.S1' 'e.E1' 's.V1) e.S2' 'e.E2' 's.V2 = False;
+}
+
+CompareRows {
+    ((e.I1) e.Row1) (e.I2) e.Row2
+    , <CompareItems (e.I1) e.I2> : {
+        True = True;
+        False = <CompareRows (e.Row1) e.Row2>;
+    };
+    (e.Rest) /*empty*/ = False;
+    (/*empty*/) e.Rest = False;
+}
+
+In {
+    e.Row1 ((e.Row2) e.Rows)
+    , <CompareRows (e.Row1) e.Row2> : {
+        True = True;
+        False = <In e.Row1 e.Rows>;
+    };
+    e.Row (/*empty*/)
+    = False;
+}
+
+IsClosedRows  {
+    ((e.Row1) e.Rows1) e.Rows2
+    , <In e.Row1 (e.Rows2)> : {
+        False = <IsClosedRows (e.Rows1) e.Rows2>;
+        True = True;
+    };
+    (/*empty*/) e.Rows
+    = False;
+}
+
+
+$ENTRY ExdTable-IsConsist {
+    [ExdTable ([Table (e.S) (e.E) (e.V1)]) ([Table (e.SS) (e.E) (e.V2)])]
+    = <GetSameRows (e.V1) e.V1>;
+}
+
+GetSameRows {
+    ((e.Row1) e.Rows1) e.Rows2
+    = (<GetSameRowsAs e.Row1 (e.Rows2)> <GetSameRows (e.Rows1) e.Rows2>);
+    (/*empty*/) e.Rows2 = ;
+}
+
+GetSameRowsAs {
+    e.Row1 ((e.Row2) e.Rows)
+    , <Prout e.Row2> :
+    , <CompareRows (e.Row1) e.Row2> : {
+        True = (<GetS e.Row1>' '<GetS e.Row2>) <GetSameRowsAs e.Row1 (e.Rows)>;
+        False = <GetSameRowsAs e.Row1 (e.Rows)>;
+    };
+    e.Row /*empty*/ = ;
+}
+
+GetS {
+    (e.S' 'e.E' 's.V) e.Some = e.S;
+}
+
+GetE {
+    (e.S' 'e.E' 's.V) e.Some = e.E;
+}
+
+$ENTRY Go {
+    , <ExdTable-Create> : t.ExdTable
+    = ;
+
+}

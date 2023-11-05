@@ -1,1 +1,5 @@
-abc|d#h|erb
+a#b
+
+(or a (con (sfl c (rep t)) (con g (rep g))))
+(or a (con (sfl c (rep t)) (con g (rep g))))
+(or a (con (sfl c (rep t)) (con g (rep g))))

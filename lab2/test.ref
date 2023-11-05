@@ -1,0 +1,15 @@
+$ENTRY Test{
+    (s.Func) e.Test'\n'e.Tests (e.Num)
+    , e.Test : e.Input'='e.Output
+    , <s.Func e.Input> : {
+        e.Output = <Prout 'Test #'e.Num'is passed'>
+                   <Test (s.Func) e.Tests (<Add e.Num 1>)>;
+        e.Wrong = <Prout 'Wrong answer on test #'e.Num'. '
+                         'Got: "'e.Wrong'" but expected: "'e.Output'"'>
+                  <Test (s.Func) e.Tests (<Add e.Num 1>)>;
+    };
+    (s.Func) e.Test'\n'e.Tests
+    = <Prout Testing is started'\n'>
+      <Test (s.Func) e.Test'\n'e.Tests (0)>;
+    (s.Func) (e.Num) = <Prout Testing is completed'\n'>;
+}
