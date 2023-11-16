@@ -1,135 +1,299 @@
+$INCLUDE "LibraryEx";
 $ENUM Table;
 $ENUM ExdTable;
 
-$ENTRY ExdTable-Create {
-    e.Alphabet
-    = <Br 'Abt='>
-    [ExdTable (<Table-Create>) (<Table-Create>)];
+Oracle-MEMBER {
+    eps = 1;
+    '1100' = 1;
+    '00' = 1;
+    '11' = 1;
+    '0110' = 1;
+    '011' = 1;
+    e.W = 0;
+
 }
 
-$ENTRY Table-Create {
-    = [Table () () ()];
+
+$ENTRY ExdTable-Create {
+    e.Alphabet
+    , <Map {s.a = (s.a); = ;} e.Alphabet> : e.SS
+    , <Map {(e.Prefix)e.P-E = <ComputeRow (e.Prefix) (eps)>; = ;} e.SS> : e.V
+    = <Br 'Abt='e.Alphabet>
+    [ExdTable
+    [Table ((eps)) ((eps)) ((eps' 'eps' '1))]
+    [Table
+        (e.SS)
+        ((eps))
+        (e.V)]];
+}
+$ENTRY ExdTable-Print {
+    [ExdTable t.T1 t.T2]
+    = <Table-Print t.T1><Prout><Table-Print t.T2>;
+}
+
+$ENTRY Table-Print {
+    [Table (e.S) (e.E) (e.V)]
+    , <Prout '\t' <Map {(e.I) = e.I'\t'} e.E>> :
+    , <PrintLoop (<Sort e.S>) (e.E) e.V> :
+    = ;
+}
+
+PrintLoop {
+    () (e.E) e.V = ;
+    ((e.S) e.S-E) (e.E) e.V
+    , <GetRow (e.S) (e.E) e.V ('\t')> : e.Row
+    = <Prout e.S'\t' e.Row><PrintLoop (e.S-E) (e.E) e.V>;
+
+}
+
+GetRow {
+    (e.S) ((e.E) e.E-E) e.V-B (e.S' 'e.E' 'e.V) e.V-E (e.del)
+    = e.V e.del <GetRow (e.S) (e.E-E) e.V-B e.V-E (e.del)>;
+    (e.S) (e.E) e.V-B (e.S' 'e.E' 'e.V) e.V-E (e.del)
+    = e.V;
+    (e.S) (e.Else) e.Some =;
+}
+
+GetRowEnum {
+    (e.S) ((e.E) e.E-E) e.V-B (e.S' 'e.E' 'e.V) e.V-E (e.del)
+    =(e.S (e.V e.del <GetRow (e.S) (e.E-E) e.V-B e.V-E (e.del)>));
+    (e.S) (e.E) e.V-B (e.S' 'e.E' 'e.V) e.V-E (e.del)
+    = (e.S (e.V));
+    (e.S) (e.Else) e.Some =;
 }
 
 $ENTRY Table-Update {
+    (e.S)
     [Table (e.SS) (e.E) (e.V)] e.CrEx
-    , <AddSymb (e.CrEx) <Cp 'Abt'>> : e.NewP
-    , <ComputeRow (e.NewP) e.E> : e.NewRow
-    = [Table (e.SS (e.NewP)) (e.E) (e.V (e.NewRow))];
+    , e.SS : {
+        e.SS-B (e.CrEx) e.SS-E = e.SS-B e.SS-E;
+        e.NoCrEx = e.SS;
+    } : e.SS^
+    , <AddSymb (Exclude e.S) (e.CrEx) <Cp 'Abt'>> : e.NewP
+    , <Map {
+        (e.P)e.P-E = <ComputeRow (e.P) e.E>;
+        /*empty*/ = ;
+      } e.NewP> : e.NewRows
+    = [Table (e.SS e.NewP) (e.E) (<DeleteRow (e.CrEx) e.V> e.NewRows)];
+}
+
+DeleteRow {
+    (e.S) (e.S' 'e.Col) e.V = <DeleteRow (e.S) e.V>;
+    (e.S) e.V = e.V;
 }
 
 AddSymb {
-    (e.Word) /*empty*/ = ;
-    (e.Word) s.Char e.Abt
-    = (e.Word s.Char) <AddSymb (e.Word) e.Abt>;
+    (Exclude e.S) (e.Word) /*empty*/ = ;
+    (Exclude e.S) (e.Word) s.Char e.Abt
+    , e.S : {
+        e.S-B (e.Word s.Char) e.S-E = <AddSymb (Exclude e.S) (e.Word) e.Abt>;
+        e.SE = (e.Word s.Char) <AddSymb (Exclude e.S) (e.Word) e.Abt>;
+    };
+
 }
 
 $ENTRY ExdTable-Insert {
-    [ExdTable [Table (e.S) (e.E) (e.V2)] t.T]
-    (0) e.Prefix
+    [ExdTable [Table (e.S-B (e.Prefix) e.S-E) (e.E) (e.V1)] t.T]
+    (notclosed) e.Prefix
+    = [ExdTable [Table (e.S-B (e.Prefix) e.S-E) (e.E) (e.V1)] t.T];
+
+    [ExdTable [Table (e.S) (e.E) (e.V1)] t.T]
+    (notclosed) e.Prefix
     , <ComputeRow (e.Prefix) e.E> : e.NewRow
-    , <ExdTable-Update t.T > : t.T^
-    = [ExdTable [Table (e.S (e.Prefix)) (e.E) (e.V2 (e.NewRow))] t.T];
+    , <Table-Update (e.S) t.T e.Prefix> : t.T^
+    = [ExdTable [Table (e.S (e.Prefix)) (e.E) (e.V1 e.NewRow)] t.T];
+
+    [ExdTable [Table (e.S) (e.E) (e.V1)] [Table (e.SS) (e.E) (e.V2)] ]
+    (notconsist) s.Suf
+    , e.E (s.Suf) : e.E^
+    , <GetNewColumn (e.S) s.Suf (e.V1 e.V2)> : e.V1^
+    , <GetNewColumn (e.SS) s.Suf (e.V1 e.V2)> : e.V2^
+    = [ExdTable [Table (e.S) (e.E) (e.V1)] [Table (e.SS) (e.E) (e.V2)] ];
 
 
     [ExdTable [Table (e.S) (e.E) (e.V1)] [Table (e.SS) (e.E) (e.V2)] ]
-    (1) e.Suffix
-    , <ComputeRow (e.Suffix) e.E> : e.NewRow
-    , e.E e.Suffix : e.E^
-    , e.V2 e.NewRow : e.V2^
-    = [ExdTable [Table (e.SS) (e.E) (e.V1)]];
-
+    (counter) e.W
+    , <GetAllPrefixes e.W (1)> : e.Prefs
+    , <Prout all prefs e.Prefs> :
+*   for all pref in prefs exd-insert pref (notclosed) gute?
+    = <InsertAllPrefixes
+        [ExdTable [Table (e.S) (e.E) (e.V1)] [Table (e.SS) (e.E) (e.V2)]]
+        e.Prefs>;
 }
 
-Oracle-MEMBER {
-    e.W = 1;
+GetNewColumn {
+    ((e.S)e.S-E) s.Suf (e.V)
+    = <FindInTable (e.S s.Suf) e.V> : {
+        True e.M = <GetNewColumn (e.S-E) s.Suf (e.V (e.S' 's.Suf' 'e.M))>;
+        False = <GetNewColumn (e.S-E) s.Suf (e.V (e.S' 's.Suf' '<Oracle-MEMBER e.S s.Suf>))>;
+    };
+    (/*empty*/) s.Suf (e.V)
+    = e.V;
+}
+
+FindInTable {
+    (e.S s.Suf) e.V-B (e.S s.Suf' 'e.Suf2' 'e.M) e.V-E
+    = True e.M;
+    (e.S s.Suf) e.V
+    = False;
+}
+
+
+InsertAllPrefixes {
+    t.ExdTable (e.Pref) e.Prefixes
+    , <ExdTable-Insert t.ExdTable (notclosed) e.Pref> : t.ExdTable^
+    = <InsertAllPrefixes t.ExdTable e.Prefixes>;
+    t.ExdTable /*empty*/
+    = t.ExdTable;
+}
+
+GetAllPrefixes {
+    s.a (1) = (s.a);
+    s.a (0) = ; /*уже включен предыдущем вызовом*/
+    e.W s.a (1) = (e.W s.a) <GetAllPrefixes e.W s.a (0)>;
+    e.W s.a (0) = (e.W) <GetAllPrefixes e.W (0)>;
+
 }
 
 ComputeRow {
     (e.Prefix) /*empty*/ = ;
+    (eps) (e.Suffix) e.E
+    = (eps' 'e.Suffix<Oracle-MEMBER e.Suffix>)<ComputeRow (eps) e.E>;
+    (e.Prefix) (eps) e.E
+    = (e.Prefix' 'eps' '<Oracle-MEMBER e.Prefix>)<ComputeRow (e.Prefix) e.E>;
     (e.Prefix) (e.Suffix) e.E
-    = (<Oracle-MEMBER e.Prefix e.Suffix> <ComputeRow (e.Prefix) e.E>);
-
+    = (e.Prefix' 'e.Suffix' '<Oracle-MEMBER e.Prefix e.Suffix>)<ComputeRow (e.Prefix) e.E>;
 }
 
 $ENTRY ExdTable-IsClosed {
-    [ExdTable ([Table (e.S) (e.E) (e.V1)]) ([Table (e.SS) (e.E) (e.V2)])]
-    = <IsClosedRows (e.V1) e.V2>;
+    [ExdTable [Table (e.S) (e.E) (e.V1)] [Table (e.SS) (e.E) (e.V2)]]
+    , <GetAllRowsEnum (e.S) (e.E) e.V1 ()> : e.Rows1
+    , <GetAllRowsEnum (e.SS) (e.E) e.V2 ()> : e.Rows2
+*    , <Prout e.Rows1' 'e.Rows2> :
+    , <CompareRows (e.Rows1) (e.Rows2)> : {
+        True = True [ExdTable [Table (e.S) (e.E) (e.V1)] [Table (e.SS) (e.E) (e.V2)]];
+        e.Pref = False <ExdTable-Insert [ExdTable [Table (e.S) (e.E) (e.V1)] [Table (e.SS) (e.E) (e.V2)]]
+        (notclosed) e.Pref>;
+    };
 }
 
-* bugs here maybe
-Items {
-    (e.S' 'e.E' 'e.V) = e.V;
-    (e.S' 'e.E' 'e.V) e.R-E = (e.V <Items e.R-E>);
-
+CompareRows {
+    (e.Rows1-B (e.S (e.Row)) e.Rows-E) (e.Rows2-B (e.SS (e.Row)) e.Rows-E)
+    = <CompareRows (e.Rows1-B (e.S (e.Row)) e.Rows-E) (e.Rows2-B e.Rows-E)>;
+    (e.S (e.Row)) (e.Rows2-B (e.SS (e.Row)) e.Rows-E)
+    = <CompareRows (e.S (e.Row)) e.Rows2-B e.Rows-E>;
+    (e.Rows)e.Rows-E (/*empty*/) = True;
+    (e.Rows)e.Rows-E ((e.S (e.Row))e.Else) = e.S;
 }
+
+GetAllRows {
+    ((e.S) e.S-E) (e.E) e.V
+    = (<GetRow (e.S) (e.E) e.V ()>)<GetAllRows (e.S-E) (e.E) e.V>;
+    (/*empty*/) (e.E) e.V
+    = ;
+    (e.S) (e.E) e.V
+    = (<GetRow (e.S) (e.E) e.V ()>);
+}
+GetAllRowsEnum {
+    ((e.S) e.S-E) (e.E) e.V
+    = (e.S (<GetRow (e.S) (e.E) e.V ()>))<GetAllRowsEnum (e.S-E) (e.E) e.V>;
+    (/*empty*/) (e.E) e.V
+    = ;
+    (e.S) (e.E) e.V
+    = (e.S (<GetRow (e.S) (e.E) e.V ()>));
+}
+
 CompareItems {
     (e.S1' 'e.E1' 's.V) e.S2' 'e.E2' 's.V = True;
     (e.S1' 'e.E1' 's.V1) e.S2' 'e.E2' 's.V2 = False;
 }
 
-CompareRows {
-    ((e.I1) e.Row1) (e.I2) e.Row2
-    , <CompareItems (e.I1) e.I2> : {
-        True = True;
-        False = <CompareRows (e.Row1) e.Row2>;
-    };
-    (e.Rest) /*empty*/ = False;
-    (/*empty*/) e.Rest = False;
+$ENTRY ExdTable-GetDFA {
+    [ExdTable [Table (e.S) (e.E) (e.V1)] [Table (e.SS) (e.E) (e.V2)]]
+    = ;
 }
-
-In {
-    e.Row1 ((e.Row2) e.Rows)
-    , <CompareRows (e.Row1) e.Row2> : {
-        True = True;
-        False = <In e.Row1 e.Rows>;
-    };
-    e.Row (/*empty*/)
-    = False;
-}
-
-IsClosedRows  {
-    ((e.Row1) e.Rows1) e.Rows2
-    , <In e.Row1 (e.Rows2)> : {
-        False = <IsClosedRows (e.Rows1) e.Rows2>;
-        True = True;
-    };
-    (/*empty*/) e.Rows
-    = False;
-}
-
 
 $ENTRY ExdTable-IsConsist {
-    [ExdTable ([Table (e.S) (e.E) (e.V1)]) ([Table (e.SS) (e.E) (e.V2)])]
-    = <GetSameRows (e.V1) e.V1>;
+    [ExdTable [Table (e.S) (e.E) (e.V1)] [Table (e.SS) (e.E) (e.V2)]]
+    , <GetAllRowsEnum (e.S) (e.E) e.V1> <GetAllRowsEnum (e.SS) (e.E) e.V2>: e.Rows
+*    , <Prout All e.Rows> :
+    , <OutLoopC e.Rows (e.E) (e.V1 e.V2)> : {
+        True = True [ExdTable [Table (e.S) (e.E) (e.V1)] [Table (e.SS) (e.E) (e.V2)]];
+        (e.S1 (e.Row1))(e.S2 (e.Row2)) = e.S1;
+    } : e.P s.S
+    = False
+        <ExdTable-Insert
+        [ExdTable [Table (e.S) (e.E) (e.V1)] [Table (e.SS) (e.E) (e.V2)]]
+        (notconsist) s.S>;
 }
 
-GetSameRows {
-    ((e.Row1) e.Rows1) e.Rows2
-    = (<GetSameRowsAs e.Row1 (e.Rows2)> <GetSameRows (e.Rows1) e.Rows2>);
-    (/*empty*/) e.Rows2 = ;
-}
-
-GetSameRowsAs {
-    e.Row1 ((e.Row2) e.Rows)
-    , <Prout e.Row2> :
-    , <CompareRows (e.Row1) e.Row2> : {
-        True = (<GetS e.Row1>' '<GetS e.Row2>) <GetSameRowsAs e.Row1 (e.Rows)>;
-        False = <GetSameRowsAs e.Row1 (e.Rows)>;
+OutLoopC {
+    (e.Row1) (e.Row2) e.Rows (e.E) (e.V2)
+    , <InLoopC (e.Row1) (e.Row2) e.Rows (e.E) (e.V2)> : {
+        True = <OutLoopC (e.Row2) e.Rows (e.E) (e.V2)>;
+        e.Else = e.Else;
     };
-    e.Row /*empty*/ = ;
+    (e.Row) /*empty*/ (e.E) (e.V2) = True;
+}
+
+InLoopC {
+    (e.Row1) /*empty*/ (e.E) (e.V2)
+    = True;
+    (e.S1 (e.Row1)) (e.S2 (e.Row1)) e.Rows (e.E) (e.V2)
+*    , <Prout e.S1 same e.S2> :
+    = <AbtLoopC (e.S1 (e.Row1)) (e.S2 (e.Row1)) (e.Rows) <Cp 'Abt'> (e.E) (e.V2)>;
+    (e.S1 (e.Row1)) (e.S2 (e.Row2)) e.Rows (e.E) (e.V2)
+    = <InLoopC (e.S1 (e.Row1)) e.Rows (e.E) (e.V2)>;
+}
+
+AbtLoopC {
+    (e.Row1) (e.Row2) (e.Rows) s.s e.Abt (e.E) (e.V2)
+    , <ExdView e.Row1 s.s> : e.S12
+    , <ExdView e.Row2 s.s> : e.S22
+    , <GetRowEnum (e.S12) (e.E) e.V2 ()> : {
+        /*empty*/ = True;
+        (e.SS1 (e.Row1E))
+        , <GetRowEnum (e.S22) (e.E) e.V2 ()> : {
+            (e.SS2 (e.Row1E)) = <AbtLoopC (e.Row1) (e.Row2) (e.Rows) e.Abt (e.E) (e.V2)>;
+            (e.SS2 (e.Else)) = (e.SS1 (e.Row1E)) (e.SS2 (e.Else));
+            /*empty*/ = True;
+        };
+    };
+
+    (e.Row1) (e.Row2) (e.Rows) (e.E) (e.V2)
+    = <InLoopC (e.Row1) e.Rows (e.E) (e.V2)>;
+}
+
+ExdView {
+    eps (e.Row) s.s = s.s;
+    e.S (e.Row) s.s = e.S s.s;
 }
 
 GetS {
-    (e.S' 'e.E' 's.V) e.Some = e.S;
+    e.S' 'e.E' 's.V = e.S;
 }
 
 GetE {
-    (e.S' 'e.E' 's.V) e.Some = e.E;
+    e.S' 'e.E' 's.V = e.E;
 }
 
 $ENTRY Go {
-    , <ExdTable-Create> : t.ExdTable
+    , <ExdTable-Create '01'> : t.ExdTable
+*    , <ExdTable-Print t.ExdTable> :
+*    , <Prout>:
+    , <ExdTable-IsClosed t.ExdTable> : e.Status t.ExdTable^
+*    , <Prout e.Status> :
+*    , <ExdTable-Print t.ExdTable> :
+    , <Prout>:
+    , <ExdTable-Insert t.ExdTable (counter) '11'> : t.ExdTable^
+*    , <Prout t.ExdTable> :
+*    , <ExdTable-Print t.ExdTable> :
+*    , <ExdTable-Print t.ExdTable> :
+    , <ExdTable-IsConsist t.ExdTable> : e.Status^ t.ExdTable^
+    , <ExdTable-Print t.ExdTable> :
+    , <ExdTable-Insert t.ExdTable (counter) '011'> : t.ExdTable^
+    , <ExdTable-Print t.ExdTable> :
+
     = ;
 
 }
