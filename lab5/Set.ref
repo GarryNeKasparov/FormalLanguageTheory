@@ -1,0 +1,21 @@
+$ENUM Set;
+
+$ENTRY Set-Create {
+    = [Set ()];
+}
+$ENTRY Set-Insert {
+    [Set (e.S-B (e.S) e.S-E)] e.S = [Set (e.S-B (e.S) e.S-E)] ;
+    [Set (e.S)] e.V = [Set (e.S (e.V))];
+    [Set (e.S)] (e.V) = [Set (e.S (e.V))];
+}
+
+$ENTRY Set-Isin {
+    [Set (e.S-B (e.S) e.S-E)] e.S = True;
+    [Set (e.S)] e.V = False;
+}
+
+$ENTRY Set-ListInsert {
+    t.Set (/*empty*/) = t.Set;
+    t.Set ((e.V) e.V-E)
+    = <Set-ListInsert <Set-Insert t.Set e.V> (e.V-E)>;
+}

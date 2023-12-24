@@ -1,0 +1,211 @@
+*$FROM LibraryEx
+$EXTERN Map;
+*$FROM Set
+$EXTERN Set-Create, Set-Insert, Set-Isin, Set-ListInsert;
+*$FROM List
+$EXTERN List-Create, List-InitForEach, List-Rewrite, List-DropKey,
+List-Append, List-AppendList, List-Get, List-ToJSON, List-Keys, List-WhereIn;
+
+$ENTRY Go {
+    , <Open 'r' 1 <Arg 1>> :
+    , <ReadLines 1 ('#grammar')> : '#priority\n'e.Priority'\n#string\n'e.String
+    , <ParseGrammar 1> : t.Grammar
+*    , <Prout <List-ToJSON t.Grammar>> :
+    , <RemoveUseless t.Grammar> : t.Grammar^
+    = <Prout <List-ToJSON t.Grammar>>;
+}
+
+FindWithoutT_termsloop {
+    e.T' 'e.TE
+    , <IsNTerm e.T> : {
+        True = True;
+        False = <FindWithoutT_termsloop e.TE>;
+    };
+    e.T
+    , <IsNTerm e.T> : {
+        True = True;
+        False = False;
+    }
+}
+
+FindWithoutT_ruleloop {
+    /*empty*/ = True;
+    (e.Rule)e.Rules
+*    , <Prout e.Rule> :
+    , <FindWithoutT_termsloop e.Rule> : {
+        True = <FindWithoutT_ruleloop e.Rules>;
+        False = False;
+    }
+}
+
+FindWithoutT {
+    t.Grammar t.Set /*empty*/
+    = t.Set;
+    t.Grammar t.Set (e.K)e.Keys
+    , <List-Get t.Grammar e.K> : e.Rules
+    , <FindWithoutT_ruleloop e.Rules> : {
+        False = <FindWithoutT t.Grammar <Set-Insert t.Set e.K> e.Keys>;
+        True = <FindWithoutT t.Grammar t.Set e.Keys>;
+    }
+}
+
+RemoveUseless_termsloop {
+    t.Set e.T' 'e.TE
+    , <IsNTerm e.T> : {
+        True
+        , <Set-Isin t.Set e.T> : {
+            True = True;
+            False = <RemoveUseless_termsloop t.Set e.TE>;
+        };
+        False = <RemoveUseless_termsloop t.Set e.TE>;
+    };
+    t.Set e.T
+    , <IsNTerm e.T> : {
+        True
+        , <Set-Isin t.Set e.T> : {
+            True = True;
+            False = False;
+        };
+        False = False;
+    }
+}
+
+RemoveUseless_ruleloop {
+    t.Set /*empty*/
+    = False;
+    t.Set (e.Rule)e.Rules
+    , <RemoveUseless_termsloop t.Set e.Rule> : {
+        True = True;
+        False = <RemoveUseless_ruleloop t.Set e.Rules>;
+    }
+}
+
+RemoveUseless_loop {
+    t.Grammar t.Set /*empty*/
+    = t.Set;
+    t.Grammar t.Set (e.K)e.Keys
+    , <List-Get t.Grammar e.K> : e.Rules
+    , <RemoveUseless_ruleloop t.Set e.Rules> : {
+        True = <RemoveUseless_loop t.Grammar <Set-Insert t.Set e.K> e.Keys>;
+        False = <RemoveUseless_loop t.Grammar t.Set e.Keys>;
+    };
+}
+
+RemoveUseless_ {
+    t.Grammar t.Set
+    , <FindWithoutT t.Grammar t.Set <List-Keys t.Grammar>> : t.Set^
+    , <List-Keys t.Grammar> : e.Keys
+    , <RemoveUseless_loop t.Grammar t.Set e.Keys> : {
+        t.Set = t.Set;
+        t.NewSet = <RemoveUseless_loop t.Grammar t.NewSet e.Keys>;
+    }
+}
+
+RemoveUseless {
+    t.Grammar
+    , <Set-Create> : t.Set
+    , <RemoveUseless_ t.Grammar t.Set> : t.Set^
+    , <Prout t.Set> :
+    = <DropFromGrammar t.Grammar t.Set <List-Keys t.Grammar>>;
+}
+
+DropFromGrammar_termsloop {
+    t.Set e.T' 'e.TE
+    , <IsNTerm e.T> : {
+        True
+        , <Set-Isin t.Set e.T> : {
+            True = <DropFromGrammar_termsloop t.Set e.TE>;
+            False = False;
+        };
+        False = <DropFromGrammar_termsloop t.Set e.TE>;
+    };
+    t.Set e.T
+    , <IsNTerm e.T> : {
+        True
+        , <Set-Isin t.Set e.T> : {
+            True = True;
+            False = False;
+        };
+        False = True;
+    }
+}
+
+DropFromGrammar_ruleloop {
+    t.Set /*empty*/
+    = ;
+    t.Set (e.Rule)e.Rules
+    , <DropFromGrammar_termsloop t.Set e.Rule> : {
+        True = (e.Rule)<DropFromGrammar_ruleloop t.Set e.Rules>;
+        False = <DropFromGrammar_ruleloop t.Set e.Rules>;
+    }
+}
+
+DropFromGrammar {
+    t.Grammar t.Set /*empty*/
+    = t.Grammar;
+    t.Grammar t.Set (e.K)e.Keys
+    , <List-Get t.Grammar e.K> : e.Rules
+    , <DropFromGrammar_ruleloop t.Set e.Rules> : {
+        /*empty*/ = <List-DropKey t.Grammar e.K>;
+        e.Rules^ = <List-Rewrite t.Grammar (e.K) e.Rules>;
+    } : t.Grammar^
+    = <DropFromGrammar t.Grammar t.Set e.Keys>;
+}
+
+Split {
+    (e.Delimeter) e.SB' 'e.Delimeter' 'e.SE
+    = (e.SB)<Split (e.Delimeter) e.SE>;
+    (e.Delimeter) e.S
+    = (e.S);
+
+}
+
+ParseGrammar_ {
+    t.List s.Stream
+    , <Get s.Stream> : {
+        0 = t.List;
+        e.T' -> 'e.Rule 0 = <List-AppendList t.List (e.T) <Split ('|') e.Rule>>;
+        e.T' -> 'e.Rule = <ParseGrammar_ <List-AppendList t.List (e.T) <Split ('|') e.Rule>> s.Stream>;
+    }
+}
+
+ParseGrammar {
+    s.Stream
+    , <List-Create> : t.List
+    = <ParseGrammar_ t.List s.Stream>;
+}
+
+IsNTerm {
+    s.A
+    , <Compare (<Ord s.A>) <Ord 'Z'>> : {
+        '-'
+        , <Compare (<Ord s.A>) <Ord 'A'>> : {
+            '-' = False;
+            s.E = True;
+        };
+        s.E = False;
+    };
+    e.T = True; /*S''''...'*/
+}
+
+FIRSTLoop {
+    (true) t.List (e.NTerms) e.Grammar =;
+
+}
+
+GetFIRST {
+    e.Grammar
+    , <List-Create> : t.List = ;
+*    , <GetAllNTerm e.Grammar> : e.NTerms
+*    , <List-InitForEach t.List (e.NTerms)> : t.List^
+*    = <FIRSTLoop (true) t.List (e.NTerms) e.Grammar>;
+}
+
+ReadLines {
+    s.Stream (e.Stop)
+    , <Get s.Stream> : {
+        e.Line 0 = e.Line;
+        e.Stop = ;
+        e.Line = e.Line'\n'<ReadLines s.Stream (e.Stop)>;
+    }
+}

@@ -1,0 +1,73 @@
+$ENUM List;
+
+$ENTRY List-Create {
+    = [List ()];
+}
+
+$ENTRY List-Append {
+    [List (e.L-B ((e.K) (e.V)) e.L-E)] (e.K) e.NewV
+    = [List (e.L-B ((e.K) (e.V (e.NewV)) ) e.L-E)];
+
+    [List (e.L)] (e.NewK) (e.NewV)
+    = [List (e.L ((e.NewK) ((e.NewV)) ))];
+
+    [List (e.L)] (e.NewK) e.NewV
+    = [List (e.L ((e.NewK) ((e.NewV)) ))];
+}
+
+$ENTRY List-AppendList {
+    [List (e.L)] (e.NewK) /*empty*/
+    = [List (e.L)];
+
+    [List (e.L-B ((e.K) (e.V)) e.L-E)] (e.K) (e.NewV)e.L
+    = <List-AppendList [List (e.L-B ((e.K) (e.V (e.NewV)) ) e.L-E)] (e.K) e.L>;
+
+    [List (e.L)] (e.NewK) (e.NewV)e.VE
+    = <List-AppendList [List (e.L ((e.NewK) ((e.NewV)) ))] (e.NewK) e.VE>;
+}
+
+$ENTRY List-ToJSON {
+    [List ()] = ;
+    [List (((e.K) (e.V)) e.L)]
+    = '\"'e.K'\" : {\n\t'e.V'\n}\n'<List-ToJSON [List (e.L)]>;
+}
+
+$ENTRY List-InitForEach {
+    [List (e.V)] (/*empty*/) = [List (e.V)];
+    [List ()] ((e.K)e.List)
+    = <List-InitForEach [List ( ((e.K) 0) )] (e.List)>;
+}
+
+$ENTRY List-Get {
+    [List (e.LB((e.K) (e.V)) e.LE)] e.K
+     = e.V;
+
+    [List (e.L)] e.K
+    = ;
+}
+
+$ENTRY List-Keys {
+    [List ()]
+    = ;
+    [List (((e.K) e.V)e.L)]
+    = (e.K)<List-Keys [List (e.L)]>;
+}
+
+$ENTRY List-WhereIn {
+    [List ()] e.I
+    = ;
+    [List (e.LB ((e.K) (e.VB (e.I) e.VE)) e.LE)] e.I
+    = (e.K)<List-WhereIn [List (e.LE)] e.I>;
+    [List (e.L)] e.I
+    = ;
+}
+
+$ENTRY List-Rewrite {
+    [List (e.L-B ((e.K) (e.V)) e.L-E)] (e.K) e.NewV
+    = [List (e.L-B ((e.K) (e.NewV)) e.L-E)];
+}
+
+$ENTRY List-DropKey {
+    [List (e.L-B ((e.K) (e.V)) e.L-E)] e.K
+    = [List (e.L-B e.L-E)];
+}
