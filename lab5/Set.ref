@@ -9,13 +9,13 @@ $ENTRY Set-Insert {
     [Set (e.S)] (e.V) = [Set (e.S (e.V))];
 }
 
+$ENTRY Set-InsertList {
+    [Set (e.V)] /*empty*/ = [Set (e.V)];
+    [Set (e.S-B (e.S) e.S-E)] (e.S)e.SE = <Set-InsertList [Set (e.S-B (e.S) e.S-E)] e.SE>;
+    [Set (e.S)] (e.V)e.VE = <Set-InsertList [Set (e.S (e.V))] e.VE>;
+}
+
 $ENTRY Set-Isin {
     [Set (e.S-B (e.S) e.S-E)] e.S = True;
     [Set (e.S)] e.V = False;
-}
-
-$ENTRY Set-ListInsert {
-    t.Set (/*empty*/) = t.Set;
-    t.Set ((e.V) e.V-E)
-    = <Set-ListInsert <Set-Insert t.Set e.V> (e.V-E)>;
 }
