@@ -1,7 +1,7 @@
 *$FROM LibraryEx
 $EXTERN Map;
 *$FROM Set
-$EXTERN Set-Create, Set-Insert, Set-Isin, Set-InsertList;
+$EXTERN Set-Create, Set-Insert, Set-Isin, Set-InsertList, Set-Get;
 *$FROM List
 $EXTERN List-Create, List-InitForEach, List-Rewrite, List-DropKey,
 List-Append, List-AppendList, List-Get, List-ToJSON, List-Keys, List-WhereIn;
@@ -16,7 +16,9 @@ $ENTRY Go {
     , <Prout <List-ToJSON t.Grammar>> :
 *    , <Prout <FIRST t.Grammar 'A'>> :
     , <ConstructFIRST t.Grammar> : t.FIRST
+    , <ConstructFOLLOW t.Grammar> : t.FOLLOW
     , <Prout <List-ToJSON t.FIRST>> :
+    , <Prout <List-ToJSON t.FOLLOW>> :
     = ;
 }
 FindWithoutT_termsloop {
@@ -183,7 +185,7 @@ FIRST_rulesloop {
     t.Grammar t.Set /*empty*/
     = t.Set;
     t.Grammar t.Set (e.Rule)e.Rules
-    , <Prout t.Set <FIRST t.Grammar e.Rule>> :
+*    , <Prout t.Set <FIRST t.Grammar e.Rule>> :
 
     , <Set-InsertList t.Set <FIRST t.Grammar e.Rule>> : t.Set^
     = <FIRST_rulesloop t.Grammar t.Set e.Rules>;
@@ -198,7 +200,7 @@ FIRST_loop {
     t.Grammar t.FIRST (e.K)e.Keys
     , <List-Get t.Grammar e.K> : e.Rules
     , <List-Get t.FIRST e.K> : (t.Set)
-    , <Prout t.Set> :
+*    , <Prout t.Set> :
     , <FIRST_rulesloop t.Grammar t.Set e.Rules> : {
         t.Set = t.Set;
         t.NewSet = <Br 'changed=True'>t.NewSet;
@@ -242,8 +244,79 @@ FIRST {
     }
 }
 
-ConstructFollow {
+FOLLOW_InitList {
+    t.FOLLOW /*empty*/
+    = t.FOLLOW;
+    t.FOLLOW ('S')e.NT
+    , <Set-Create> : t.Set
+    , <Set-Insert t.Set f> : t.Set^
+    = <FOLLOW_InitList <List-Append t.FOLLOW ('S') t.Set> e.NT>;
+    t.FOLLOW (e.N)e.NT
+    = <FOLLOW_InitList <List-Append t.FOLLOW (e.N) <Set-Create>> e.NT>;
+}
 
+ContainsTerm {
+    e.T' 'e.TE
+    , <IsNTerm e.T> : {
+        True = <ContainsTerm e.TE>;
+        False = True;
+    };
+    e.T
+    , <IsNTerm e.T> : {
+        True = False;
+        False = True;
+    };
+}
+
+FOLLOW_rulesloop {
+    t.Grammar t.FOLLOW (e.K) /*empty*/
+    = t.FOLLOW;
+    t.Grammar t.FOLLOW (e.K) (s.a' 'e.B)e.Rules
+    , e.B : {
+        s.B e.BB '\'' ' 'e.y = s.B e.BB '\'' (e.y);
+        s.B' 'e.y = s.B (e.y);
+    } : e.B^(e.y)
+    , <Prout rule e.B> :
+    , <List-Get t.FOLLOW e.B> : (t.BF)
+    , <FIRST t.Grammar e.y> : (e.Fst)
+    , <Prout e.K' FIRST ' e.Fst> :
+    , <ContainsTerm e.Fst> : {
+        True
+        , <List-Get t.FOLLOW e.K> : (t.KF)
+        , <Set-Get t.KF> : (e.KF)
+        = <Set-InsertList t.BF e.KF>;
+        False = t.BF;
+    } : t.BF^
+    , <Set-Insert t.BF e.Fst> : t.BF^
+    , <Prout e.y' ...'<FIRST t.Grammar e.y>' 't.BF> :
+    , <List-Rewrite t.FOLLOW (e.B) t.BF> : {
+        t.FOLLOW = t.FOLLOW;
+        t.NEWFOLLOW = <Br 'changed=True'><FOLLOW_rulesloop t.Grammar t.NEWFOLLOW (e.K) e.Rules>;
+    };
+
+    t.Grammar t.FOLLOW (e.K) (e.Rule)e.Rules
+    = <FOLLOW_rulesloop t.Grammar t.FOLLOW (e.K) e.Rules>;
+}
+
+FOLLOW_loop {
+    t.Grammar t.FOLLOW /*empty*/
+    , <Dg 'changed'> : {
+        'false' = t.FOLLOW;
+        'true' = <FOLLOW_loop t.Grammar t.FOLLOW <List-Keys t.Grammar>>;
+    };
+    t.Grammar t.FOLLOW (e.K)e.Keys
+    , <List-Get t.Grammar e.K> : e.Rules
+    = <FOLLOW_rulesloop t.Grammar t.FOLLOW (e.K) e.Rules>;
+}
+
+ConstructFOLLOW {
+    t.Grammar
+    , <List-Create> : t.FOLLOW
+    , <List-Keys t.Grammar> : e.NT
+    , <FOLLOW_InitList t.FOLLOW e.NT> : t.FOLLOW^
+    , <Br 'changed=False'> :
+*    , <Prout <List-Keys t.Grammar>> :
+    = <FOLLOW_loop t.Grammar t.FOLLOW <List-Keys t.Grammar>>;
 }
 
 IsNTerm {

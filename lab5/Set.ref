@@ -4,9 +4,13 @@ $ENTRY Set-Create {
     = [Set ()];
 }
 $ENTRY Set-Insert {
+    [Set (e.S)] (e.V) = [Set (e.S (e.V))];
     [Set (e.S-B (e.S) e.S-E)] e.S = [Set (e.S-B (e.S) e.S-E)] ;
     [Set (e.S)] e.V = [Set (e.S (e.V))];
-    [Set (e.S)] (e.V) = [Set (e.S (e.V))];
+}
+
+$ENTRY Set-Get {
+    [Set e.V] = e.V;
 }
 
 $ENTRY Set-InsertList {
