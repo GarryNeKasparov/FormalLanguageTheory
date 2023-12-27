@@ -5,7 +5,7 @@ $ENTRY Set-Create {
 }
 $ENTRY Set-Insert {
     [Set (e.S)] (e.V) = [Set (e.S (e.V))];
-    [Set (e.S-B (e.S) e.S-E)] e.S = [Set (e.S-B (e.S) e.S-E)] ;
+    [Set (e.S-B (e.S) e.S-E)] e.S = [Set (e.S-B (e.S) e.S-E)];
     [Set (e.S)] e.V = [Set (e.S (e.V))];
 }
 
@@ -14,9 +14,12 @@ $ENTRY Set-Get {
 }
 
 $ENTRY Set-InsertList {
+    [Set (e.V)] (/*empty*/) = [Set (e.V)];
     [Set (e.V)] /*empty*/ = [Set (e.V)];
-    [Set (e.S-B (e.S) e.S-E)] (e.S)e.SE = <Set-InsertList [Set (e.S-B (e.S) e.S-E)] e.SE>;
-    [Set (e.S)] (e.V)e.VE = <Set-InsertList [Set (e.S (e.V))] e.VE>;
+    [Set (e.S)] (e.S)e.SE = <Set-InsertList [Set (e.S)] e.SE>;
+    [Set (e.V)] (e.S)e.SE
+    , <Set-Insert [Set (e.V)] e.S> : [Set (e.V^)]
+    = <Set-InsertList [Set (e.V)] e.SE>;
 }
 
 $ENTRY Set-Isin {

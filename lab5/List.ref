@@ -17,6 +17,8 @@ $ENTRY List-Append {
 }
 
 $ENTRY List-AppendList {
+    [List (e.L)] (e.NewK) (/*empty*/)
+    = [List (e.L)];
     [List (e.L)] (e.NewK) /*empty*/
     = [List (e.L)];
 
