@@ -1,4 +1,3 @@
-
 function read_from_file(file)
     lines = []
     open(file, "r") do f
@@ -32,6 +31,7 @@ struct Todo
     type::String
     data::Int64
 end
+
 function grammar_print(grammer)
     res = ""
     for rule ∈ grammer
@@ -62,64 +62,11 @@ function gen_com_for_is_srl(states, follow_set)
     end
     return res
 end
-function gen_com_for_panic(arrow, line, counter, str, state, paths, follow_set, priority)
-    res = "#for\np\n#priority\n$priority\n#arrow\n"*string(arrow)*"\n"*"#line\n"*string(line)*"\n"*"#counter\n"*string(counter)*"\n"*"#string\n"*str*"\n"
-    res *= "#state\n"*grammar_print(state)*"#paths\n"
-    for path in paths
-        res *= "#begin\n"
-        for nterm ∈ path
-            res *= nterm*"\n"
-        end
-        res *= "#end\n"
-    end
-    res *= "#follow\n"
-    for nterm ∈ keys(follow_set)
-        res *= "#Nterm = $nterm\n"
-        res *= "#begin\n"
-        for terms ∈ follow_set[nterm]
-            res *= terms*"\n"
-        end
-        res *= "#end\n"
-    end
-    return res
-end
+
 function parse_com_is_srt(lines)
     return parse(Bool, lines[begin])
 end
-function parse_com_for_panic(lines)
-    flag = C_NULL
-    arrow = C_NULL
-    lin = C_NULL
-    count = C_NULL
-    nterm = C_NULL
-    drop = C_NULL
-    for line ∈ lines
-        if line == "#arrow"
-            flag = "arrow"
-        elseif line == "#line"
-            flag = "line"
-        elseif line == "#counter"
-            flag = "counter"
-        elseif line == "#nterm"
-            flag = "nterm"
-        elseif line == "#drop"
-            flag = "drop"
-        else
-            if flag == "arrow"
-                arrow = parse(Int, line)
-            elseif flag == "line"
-                lin = parse(Int, line)
-            elseif flag == "counter"
-                count = parse(Int, line)
-            elseif flag == "nterm"
-                nterm = line
-            elseif flag == "drop"
-                drop = parse(Int, line)
-            end
-        end
-    end
-    return arrow, lin, count, nterm, drop
-end
+
 function parse_input(lines)
     priority = false
     flag = C_NULL
@@ -129,7 +76,7 @@ function parse_input(lines)
             flag = "priority"
         elseif line == "#string"
             flag = "string"
-        elseif line == "#grammer"
+        elseif line == "#grammar"
             str = join(str, "\n")
             grammer, grammer¹ = parse_grammar(lines[index+1:end])
             return priority, str, grammer, grammer¹
@@ -473,23 +420,15 @@ end
 function gen_table(states, gotos, terms, nterms, grammar¹, follow_set)
     rows = collect(eachindex(states))
     cols = [[term for term ∈ terms]; ["Δ"]; [nterm for nterm ∈ nterms]]
-#     a = [[Todo("Error", C_NULL)], [Todo("Error", C_NULL), Todo("Lol", C_NULL)]]
     todos = Vector{Vector{Vector{Todo}}}()
     for _ in rows
-#         push!(todos, [Todo("Error", C_NULL) for _ in cols])
-        tmp = Vector{Vector{Todo}}()
-        push!(todos, tmp)
+        push!(todos, Vector{Vector{Todo}}())
         for _ in cols
             push!(todos[end], Vector{}())
-#             println(todos[end][end], Todo("Error", C_NULL))
             push!(todos[end][end], Todo("Error", C_NULL))
         end
-#         println(todos[length(todos)])
     end
-#     push!(todos[1][1], Todo("PO", C_NULL))
-#     println(todos[1][1])
-#     exit(1)
-#     parse_table = Table(rows, cols, [[Todo("Error", C_NULL) for _ in cols] for _ in rows])
+
     parse_table = Table(rows, cols, todos)
     for key in keys(gotos)
         state = key[1]
@@ -520,116 +459,138 @@ function gen_table(states, gotos, terms, nterms, grammar¹, follow_set)
             end
         end
     end
-#     println(parse_table)
     return parse_table
 end
-# TODO Vlad
-# function bubble_sort(vector, is_older)
-#     swapped = true
-#     while swapped
-#         swapped = false
-#         for i in 1:length(vector)-1
-#             if is_older(vector[i], vector[i + 1])
-#                 vector[i], vector[i + 1] = vector[i + 1], vector[i]
-#                 swapped = true
-#             end
-#         end
-#     end
-# end
+
 macro run_ref()
-    return :(Sys.iswindows() ? run(`main.exe ./com.txt ./com.txt`) : run(`./main ./com.txt ./com.txt`))
+    return :(Sys.iswindows() ? run(`rlmake main.ref | main.exe ./com.txt ./com.txt`) : run(`./main ./com.txt ./com.txt`))
 end
-function parse_string(str, parse_table, states, grammar¹, paths, grammar, follow_set, priority)
-    str *= "Δ"
-    stack = []
-    push!(stack, 1)
-    flow = split(str, "")
-    arrow = 1
-    panic = false
-    line = 1
-    count = 0
+
+function parse_string(str, base_stack, node_stack, flow, arrow, line, count,
+    parse_table, states, grammar¹, grammar, follow_set, step, pos)
+#     str *= "Δ"
+#     stack = []
+#     push!(stack, 1)
+#     flow = split(str, "")
+#     arrow = 1
+#     line = 1
+#     count = 0
     while arrow <= length(flow)
         current_char = flow[arrow]
+        println("char $(current_char) base $(base_stack) node_stack $(node_stack) step $(step) pos $(pos) arrow $(arrow)")
         if current_char == "\n"
             current_char = "\$"
         end
         if current_char == " "
             current_char = "_"
         end
-        if false
-            # TODO Vlad
-            # state = stack[end]
-            # get = []
-            # for nterm ∈ [rule.left for rule ∈ states[state]]
-            #     if current_char ∈ follow_set[nterm]
-            #         push!(get, nterm)
-            #     end
-            # end
-            # unique!(get)
-            # if !isempty(get)
-            #     bubble_sort(get, is_older)
-            #     used = C_NULL
-            #     if priority
-            #         right = sort([rule.right[begin:findfirst(x -> x == ".", rule.right)-1] for rule ∈ filter(x -> x.left == get[begin], states[state])], by=length)
-            #         used = Rule(get[begin], right[begin])
-            #     else
-            #         right = sort([rule.right[begin:findfirst(x -> x == ".", rule.right)-1] for rule ∈ filter(x -> x.left == get[end], states[state])], by=length)
-            #         used = Rule(get[end], right[end])
-            #     end
-            #     TODO I is my part
-            #     for _ ∈ used.right
-            #         pop!(stack)
-            #     end
-            #     state¹ = stack[end]
-            #     push!(stack, parse_table.table[state¹][findfirst(x -> x == used.left, parse_table.cols)].data)
-            #     panic = false
-            #     continue
-            # end
-        else
-            state = stack[end]
-            todo = Todo("Error", C_NULL)
-            if current_char ∈ parse_table.cols
-                todo = parse_table.table[state][findfirst(x -> x == current_char, parse_table.cols)]
-            end
+        state = node_stack[end]
+        println(state)
+        todo = [Todo("Error", C_NULL)]
+        if current_char ∈ parse_table.cols
+            todo = parse_table.table[state][findfirst(x -> x == current_char, parse_table.cols)]
+        end
+        if length(todo) == 1
+            println("$(todo[1])\n")
+            todo = todo[1]
             if todo.type == "Error"
                 println("Error as line $line col $(arrow-count) by term $(current_char)")
-                if arrow >= length(flow)
-                    @goto accept
-                end
-                write_to_file("com.txt", gen_com_for_panic(arrow, line, count, str, states[state], paths, follow_set, priority))
-                try
-                    @run_ref
-                catch _
-                    arrow = length(flow)
-                    @goto accept
-                end
-                arrow, line, count, nterm, drop = parse_com_for_panic(read_from_file("com.txt"))
-                if arrow > length(flow)
-                    @goto accept
-                end
-                for _ ∈ 1:drop
-                    pop!(stack)
-                end
-                state¹ = stack[end]
-                push!(stack, parse_table.table[state¹][findfirst(x -> x == nterm, parse_table.cols)].data)
-                panic = false
-                continue
-
+#                 exit(0)
             elseif todo.type == "Shift"
-                push!(stack, todo.data)
-            elseif todo.type == "Accept"
-                @label accept
-                println("Accepted")
-            else
-                rule = grammar¹[todo.data]
-                for _ ∈ rule.right
-                    pop!(stack)
+                step += 1
+                if step == show
+                    println("Show Pos $(base_stack), $(node_stack)")
                 end
-                state¹ = stack[end]
-                push!(stack, parse_table.table[state¹][findfirst(x -> x == rule.left, parse_table.cols)].data)
+                push!(node_stack, todo.data)
+            elseif todo.type == "Accept"
+#                 @label accept
+#                 println("Accepted")
+                global status = true
+                return
+            else
+                step += 1
+                if step == show
+                    println(base_stack, node_stack)
+                end
+                rule = grammar¹[todo.data]
+
+                println(node_stack, ' ', rule, ' ', flow[arrow:end])
+                i = -1
+                if length(rule.right) >= length(node_stack)
+                    i = length(rule.right) - length(node_stack)
+                else
+                    for _ ∈ rule.right
+                          pop!(node_stack)
+                    end
+                end
+                println(node_stack)
+                if i >= 0
+                    state¹ = base_stack[end-i]
+                    println(state¹)
+                    node_stack = []
+                else
+                    state¹ = node_stack[end]
+                end
+#                 println(state)
+                push!(node_stack, parse_table.table[state¹][findfirst(x -> x == rule.left, parse_table.cols)][1].data)
                 continue
             end
+        else
+            println("\nSplitting $(flow[arrow:end]) with $(arrow) $(step) $(node_stack) arrow $(arrow)\n")
+            err = 0
+            for item in todo
+                if item.type == "Error"
+                    err += 1
+                end
+            end
+            if err == length(todo)
+                println("Error as line $line col $(arrow-count) by term $(current_char)")
+                exit(0)
+            end
+            for (j, item) in enumerate(todo)
+#                 println(j, item)
+                if item.type == "Error"
+                    err += 1
+                    println("Error as line $line col $(arrow-count) by term $(current_char)")
+
+#                     exit(0)
+                elseif item.type == "Shift"
+                    step += 1
+                    if step == show
+                        println("Show Pos $(base_stack), $(node_stack)")
+                    end
+                    node = [item.data]
+                elseif item.type == "Accept"
+                    global status = true
+                    return
+                else
+                    step += 1
+                    if step == show
+                        println("Show Pos $(base_stack), $(node_stack)")
+                    end
+                    rule = grammar¹[item.data]
+                    node = node_stack
+                    for _ ∈ rule.right
+                        pop!(node)
+                    end
+                    state¹ = node[end]
+                    push!(node, parse_table.table[state¹][findfirst(x -> x == rule.left, parse_table.cols)][1].data)
+                end
+                tmp_line = copy(line)
+                tmp_count = copy(count)
+                if current_char == "\$"
+                    tmp_line+=1
+                    tmp_count=copy(arrow)
+                end
+
+                parse_string(str, node_stack, node, flow, copy(arrow)+1, tmp_line, tmp_count,
+                        parse_table, states, grammar¹, grammar, follow_set,
+                        copy(step), pos*'('*item.type[1]*string(item.data)*')')
+            end
+
+            return
         end
+
         arrow+=1
         if current_char == "\$"
             line+=1
@@ -638,20 +599,37 @@ function parse_string(str, parse_table, states, grammar¹, paths, grammar, follo
     end
 end
 
+status = false
+show = parse(Int32, ARGS[2])
 
 begin
     priority, str, grammar, grammar¹ = parse_input(read_from_file(ARGS[1]))
-    paths = compute_order(grammar)
+#     paths = compute_order(grammar)
     dot_grammar = [Rule(rule.left, [["."]; rule.right]) for rule ∈ grammar¹]
     states = []
     gotos = Dict()
     push!(states, find_closure(C_NULL, dot_grammar[1].left, dot_grammar, dot_grammar[1].left))
     gen_states!(states, gotos, dot_grammar[1].left, dot_grammar)
 #     follow_set = create_follow_set(grammar)
-    follow_set = Dict("S'" => Set(["Δ"]), "S" => Set(["Δ", "a"]), "A" => Set(["Δ", "a"]))
+    follow_set = Dict("S'" => Set(["Δ"]),
+        "S" => Set(["Δ", "p"]),
+        "N" => Set(["Δ", "v", "p"]),
+        "P" => Set(["Δ", "v", "p"]),
+        "V" => Set(["Δ", "p"]),
+        )
     println(follow_set)
     table = gen_table(states, gotos, grammar.terms, grammar.nterms, grammar¹, follow_set)
     parse_table_print(table);
-#     parse_string(str, table, states, grammar¹, paths, grammar, follow_set, priority)
+
+    str *= "Δ"
+    flow = split(str, "")
+    arrow = 1
+    line = 1
+    count = 0
+    step = 1
+    pos = "0"
+    parse_string(str, [], [1], flow, arrow, line, count,
+        table, states, grammar¹, grammar, follow_set, step, pos)
+    status ? println("Accepted") : println("No action in last position")
 
 end
