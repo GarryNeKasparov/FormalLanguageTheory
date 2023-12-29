@@ -1,0 +1,9 @@
+#priority
+true
+#string
+n*n+n
+#grammar
+S ➡ S + S
+S ➡ S * S
+S ➡ ( S )
+S ➡ n

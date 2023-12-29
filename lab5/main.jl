@@ -37,11 +37,12 @@ end
 
 mutable struct TreeNode{T}
     status::Int
+    copied::Bool
     path::String
     data::Vector{T}
     children::Vector{TreeNode}
     root::TreeNode
-    TreeNode(data::Vector{T}) where T = new{T}(0, "0", data, TreeNode[])
+    TreeNode(data::Vector{T}) where T = new{T}(0, false, "0", data, TreeNode[])
 end
 
 function grammar_print(grammer)
@@ -368,7 +369,7 @@ end
 
 function parse_string(stack, flow, arrow, line, count,
                 parse_table, states, grammar¹, grammar, follow_set, step, pos)
-    global show
+    global show, snapshot
     while arrow <= length(flow)
         current_char = flow[arrow]
         if current_char == "\n"
@@ -377,16 +378,17 @@ function parse_string(stack, flow, arrow, line, count,
         if current_char == " "
             current_char = "_"
         end
-        println("char $(current_char) stack $(stack.data) step $(step) pos $(pos) arrow $(arrow)")
-        state = stack.data[end]g
+        state = stack.data[end]
         todo = [Todo("Error", C_NULL)]
         if current_char ∈ parse_table.cols
             todo = parse_table.table[state][findfirst(x -> x == current_char, parse_table.cols)]
         end
         if length(todo) == 1
             todo = todo[1]
-            println(todo)
             if todo.type == "Error"
+                if first_split == ""
+                    first_split = "Error in line $line col $(arrow-count) by term $(current_char)"
+                end
                 stack.status = -1
                 return
             elseif todo.type == "Accept"
@@ -395,23 +397,22 @@ function parse_string(stack, flow, arrow, line, count,
             elseif todo.type == "Shift"
                 step += 1
                 push!(stack.data, todo.data)
+                if step == show
+                    snapshot[stack.path] = copy(stack.data)
+                end
             else
                 step += 1
-
                 rule = grammar¹[todo.data]
-#                 println(stack.data, rule.right)
                 if length(rule.right) >= length(stack.data)
                     parent = get_root(stack)
-#                     println(parent)
                     if isnothing(parent)
                         println("Super stack error")
                         exit(0)
                     end
-#                     println(parent.data, stack.data)
                     stack.data = vcat(parent.data, stack.data)
+                    stack.copied = true
                     grand_parent = get_root(parent)
                     if !isnothing(grand_parent)
-#                         println(grand_parent)
                         stack.root = grand_parent
                     end
                 end
@@ -420,6 +421,9 @@ function parse_string(stack, flow, arrow, line, count,
                 end
                 state¹ = stack.data[end]
                 push!(stack.data, parse_table.table[state¹][findfirst(x -> x == rule.left, parse_table.cols)][1].data)
+                if step == show
+                    snapshot[stack.path] = copy(stack.data)
+                end
                 continue
             end
         else
@@ -433,7 +437,6 @@ function parse_string(stack, flow, arrow, line, count,
                 node = TreeNode([])
                 node.path = pos*'('*item.type[1]*string(item.data)*')'
                 node.root = stack
-                println(node.path)
                 if item.type == "Error"
                     node.status = -1
                     return
@@ -442,9 +445,11 @@ function parse_string(stack, flow, arrow, line, count,
                     return
                 elseif item.type == "Shift"
                     step += 1
-                    if step ==
+
                     node.data = [item.data]
-#                     println("Item $(item) Node $(node.data)")
+                    if step == show
+                        snapshot[node.path] = copy(node.data)
+                    end
                 else
                     step += 1
                     rule = grammar¹[item.data]
@@ -456,6 +461,7 @@ function parse_string(stack, flow, arrow, line, count,
                             exit(0)
                         end
                         node.data = vcat(parent.data, node.data)
+                        node.copied = true
                     end
                     for _ ∈ rule.right
                         pop!(node.data)
@@ -463,9 +469,11 @@ function parse_string(stack, flow, arrow, line, count,
                     state¹ = node.data[end]
                     next = 0
                     push!(node.data, parse_table.table[state¹][findfirst(x -> x == rule.left, parse_table.cols)][1].data)
+                    if step == show
+                        snapshot[node.path] = copy(node.data)
+                    end
                 end
                 push!(stack.children, node)
-                println(stack.children[end].path, node.path)
                 parse_string(node, flow, arrow+next, line, count,
                     parse_table, states, grammar¹, grammar, follow_set, step,
                     node.path)
@@ -482,10 +490,18 @@ end
 
 
 status = false
-show = parse(Int32, ARGS[3])
+show = false
+full = false
+if length(ARGS) > 2
+    show = parse(Int32, ARGS[3])
+end
+if length(ARGS) > 3
+    full = parse(Bool, ARGS[4])
+end
 first_split = ""
-function process_tree(root, level=0, prnt=false)
-    global status
+snapshot = Dict()
+function process_tree(root, level=0, prnt=false, full=false)
+    global status, snapshot
     s = root.status
     status = s == 1
     if s == -1
@@ -496,11 +512,19 @@ function process_tree(root, level=0, prnt=false)
         s = "Splitted"
     end
     if prnt
-        println('\t'^level, root.data, " with status: $(s), path: $(root.path)")
+        if !full
+            if haskey(snapshot, root.path)
+                println('\t'^level, snapshot[root.path], " with status: $(s), was copied: $(root.copied), path: $(root.path)")
+            elseif root.path == "0"
+                println('\t'^level, root.data, " with status: $(s), was copied: $(root.copied), path: $(root.path)")
+            end
+        else
+            println('\t'^level, root.data, " with status: $(s), was copied: $(root.copied), path: $(root.path)")
+        end
     end
     if !isempty(root.children)
         for c in root.children
-            process_tree(c, level+1)
+            process_tree(c, level+1, prnt, full)
         end
     end
     return
@@ -517,9 +541,7 @@ begin
     push!(states, find_closure(C_NULL, dot_grammar[1].left, dot_grammar, dot_grammar[1].left))
     gen_states!(states, gotos, dot_grammar[1].left, dot_grammar)
     follow_set = get_follow_set(output_path)
-    println(follow_set)
     table = gen_table(states, gotos, grammar.terms, grammar.nterms, grammar¹, follow_set)
-    parse_table_print(table);
     str *= "Δ"
     flow = split(str, "")
     arrow = 1
@@ -530,11 +552,19 @@ begin
     christmas_tree = TreeNode([1])
     parse_string(christmas_tree, flow, arrow, line, count,
         table, states, grammar¹, grammar, follow_set, step, pos)
-    process_tree(christmas_tree, 0, false)
-    global status
+
+    global status, snapshot, show
+    if show != false
+        process_tree(christmas_tree, 0, true)
+    else
+        process_tree(christmas_tree, 0, false)
+    end
     if !status
-        println(first_split)
+        println("Rejected\n", first_split)
     else
         println("Accepted")
+    end
+    if full
+        process_tree(christmas_tree, 0, true, true)
     end
 end

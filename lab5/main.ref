@@ -14,16 +14,12 @@ $ENTRY Go {
     , <RemoveUseless t.Grammar> : t.Grammar^
     , <Open 'w' 1 <Arg 1>> :
     , <Putout 1 '#priority\n'e.Priority'\n#string\n'e.String'#grammar'> :
-    , <Prout <List-ToJSON t.Grammar>> :
     , <ToJulia t.Grammar (G) (1) <List-Keys t.Grammar>> :
     , <Close 1> :
     , <Open 'w' 2 <Arg 2>> :
-*    , <Prout <List-ToJSON t.Grammar>> :
     , <ConstructFIRST t.Grammar> : t.FIRST
-*    , <Prout <List-ToJSON t.FIRST>> :
     , <ConstructFOLLOW t.Grammar> : t.FOLLOW
     , <ToJulia t.FOLLOW (S) (2) <List-Keys t.FOLLOW>> :
-*    , <Prout <List-ToJSON t.FOLLOW>> :
     = <Close 2>;
 }
 
@@ -31,7 +27,6 @@ ToJulia_ {
     (s.Stream) (e.K) /*empty*/
     = ;
     (s.Stream) (e.K) (e.R)e.L
-    , <Prout e.K' -> 'e.R> :
     , <Putout s.Stream e.K' ➡ 'e.R> :
     = <ToJulia_ (s.Stream) (e.K) e.L>;
 }
@@ -46,7 +41,6 @@ ToJulia {
     = <ToJulia t.List (S) (s.Stream) e.Keys>;
     t.List (G) (s.Stream) (e.K)e.Keys
     , <List-Get t.List e.K> : e.L
-    , <Prout e.L> :
     , <ToJulia_ (s.Stream) (e.K) e.L> :
     = <ToJulia t.List (G) (s.Stream) e.Keys>;
 }
@@ -67,7 +61,6 @@ FindWithoutT_termsloop {
 FindWithoutT_ruleloop {
     /*empty*/ = True;
     (e.Rule)e.Rules
-*    , <Prout e.Rule> :
     , <FindWithoutT_termsloop e.Rule> : {
         True = <FindWithoutT_ruleloop e.Rules>;
         False = False;
@@ -141,7 +134,6 @@ RemoveUseless {
     t.Grammar
     , <Set-Create> : t.Set
     , <RemoveUseless_ t.Grammar t.Set> : t.Set^
-    , <Prout t.Set t.Grammar> :
     = <DropFromGrammar t.Grammar t.Set <List-Keys t.Grammar>>;
 }
 
@@ -226,11 +218,8 @@ FIRST {
     , <IsNTerm e.T> : {
         True
         , <List-Get t.Grammar e.T> : e.Rules
-        , <Prout e.Rules> :
         , <Drop e.Rules (e.T)> : e.Rules^
-*        , <Prout e.Rules> :
         = <Map {
-*            (e.T' 'e.TE) = ; /*ignoring A -> AX rules*/
             (e.Rule) = <FIRST t.Grammar e.Rule>;
             } e.Rules>;
         False = (e.T)
@@ -241,7 +230,6 @@ FIRST {
         , <List-Get t.Grammar e.T> : e.Rules
         , <Drop e.Rules (e.T)> : e.Rules^
         = <Map {
-*            (e.T' 'e.TE) = ; /*ignoring A -> AX rules*/
             (e.Rule) = <FIRST t.Grammar e.Rule>;
             } e.Rules>;
         False = (e.T);
@@ -253,9 +241,6 @@ FIRST_rulesloop {
     t.Grammar t.Set /*empty*/
     = t.Set;
     t.Grammar t.Set (e.Rule)e.Rules
-    , <Prout tut e.Rule> :
-    , <Prout end <FIRST t.Grammar e.Rule>> :
-
     , <Set-InsertList t.Set <FIRST t.Grammar e.Rule>> : t.Set^
     = <FIRST_rulesloop t.Grammar t.Set e.Rules>;
 }
@@ -263,7 +248,7 @@ FIRST_rulesloop {
 FIRST_loop {
     t.Grammar t.FIRST /*empty*/
     , <Dg 'changed'> : {
-        'True' = <Br 'changed=False'><Prout hi><FIRST_loop t.Grammar t.FIRST <List-Keys t.Grammar>>;
+        'True' = <Br 'changed=False'><FIRST_loop t.Grammar t.FIRST <List-Keys t.Grammar>>;
         'False' = t.FIRST;
     };
     t.Grammar t.FIRST (e.K)e.Keys
@@ -273,8 +258,6 @@ FIRST_loop {
         t.Set = t.Set;
         t.NewSet = <Br 'changed=True'>t.NewSet;
     } : t.Set^
-    , <Prout (e.K)t.Set> :
-
     , <List-Rewrite t.FIRST (e.K) (t.Set)> : t.FIRST^
     = <FIRST_loop t.Grammar t.FIRST e.Keys>;
 }
@@ -330,7 +313,6 @@ FOLLOW_ruleloop {
         e.B' 'e.XE = e.B(e.XE);
         e.B = e.B();
     } : e.X^(e.XE)
-    , <Prout (e.X)' rest 'e.XE> :
     , <IsNTerm e.X> : {
         False = <FOLLOW_ruleloop t.Grammar t.FOLLOW (e.K) e.XE>;
         True
@@ -342,19 +324,15 @@ FOLLOW_ruleloop {
             True
             , <List-Get t.FOLLOW e.K> : (t.KF)
             , <Set-Get t.KF> : (e.KF)
-            , <Prout want t.XF' 'e.KF' got '<Set-InsertList t.XF e.KF>> :
             = <Set-InsertList t.XF e.KF>;
             False
             = t.XF;
         } : t.XF^
-        , <Prout (e.X)' 't.XF> :
         , t.XF : {
             t.XFC = <FOLLOW_ruleloop t.Grammar t.FOLLOW (e.K) e.XE>;
             t.NXF
-            , <Prout NEW t.FOLLOW> :
             , <Br 'changed=True'> :
             , <List-Rewrite t.FOLLOW (e.X) (t.NXF)> : t.FOLLOW^
-            , <Prout t.FOLLOW>  :
             = <FOLLOW_ruleloop t.Grammar t.FOLLOW (e.K) e.XE>;
         }
     }
@@ -370,13 +348,11 @@ FOLLOW_rulesloop {
 
 FOLLOW_loop {
     t.Grammar t.FOLLOW /*empty*/
-*    , <Prout tut> :
     , <Dg 'changed'> : {
         'False' = t.FOLLOW;
-        'True' = <Prout <List-ToJSON t.FOLLOW>><Br 'changed=False'><FOLLOW_loop t.Grammar t.FOLLOW <List-Keys t.Grammar>>;
+        'True' = <Br 'changed=False'><FOLLOW_loop t.Grammar t.FOLLOW <List-Keys t.Grammar>>;
     };
     t.Grammar t.FOLLOW (e.K)e.Keys
-    , <Prout e.K> :
     , <List-Get t.Grammar e.K> : e.Rules
     , <FOLLOW_rulesloop t.Grammar t.FOLLOW (e.K) e.Rules> : t.FOLLOW^
     = <FOLLOW_loop t.Grammar t.FOLLOW e.Keys>;
@@ -399,7 +375,6 @@ ConstructFOLLOW {
     , <List-Keys t.Grammar> : (e.S)e.NT
     , <FOLLOW_InitList t.FOLLOW (e.S) (e.S)e.NT> : t.FOLLOW^
     , <Br 'changed=False'> :
-*    , <Prout <List-Keys t.Grammar>> :
     = <FOLLOW_loop t.Grammar t.FOLLOW (e.S)e.NT>;
 }
 
