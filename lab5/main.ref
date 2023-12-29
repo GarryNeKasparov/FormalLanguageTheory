@@ -10,49 +10,46 @@ $ENTRY Go {
     , <Open 'r' 1 <Arg 1>> :
     , <ReadLines 1 ('#grammar')> : '#priority\n'e.Priority'\n#string\n'e.String
     , <ParseGrammar 1> : t.Grammar
-*    , <Prout <List-ToJSON t.Grammar>> :
+    , <Close 1> :
     , <RemoveUseless t.Grammar> : t.Grammar^
-
+    , <Open 'w' 1 <Arg 1>> :
+    , <Putout 1 '#priority\n'e.Priority'\n#string\n'e.String'#grammar'> :
+    , <Prout <List-ToJSON t.Grammar>> :
+    , <ToJulia t.Grammar (G) (1) <List-Keys t.Grammar>> :
+    , <Close 1> :
+    , <Open 'w' 2 <Arg 2>> :
 *    , <Prout <List-ToJSON t.Grammar>> :
     , <ConstructFIRST t.Grammar> : t.FIRST
-    , <Prout <List-ToJSON t.FIRST>> :
+*    , <Prout <List-ToJSON t.FIRST>> :
     , <ConstructFOLLOW t.Grammar> : t.FOLLOW
-    , <Prout <List-ToJSON t.FOLLOW>> :
-*    , <Prout <Closure t.Grammar>> :
-
-    = <Close 1>;
+    , <ToJulia t.FOLLOW (S) (2) <List-Keys t.FOLLOW>> :
+*    , <Prout <List-ToJSON t.FOLLOW>> :
+    = <Close 2>;
 }
 
-Closure_loop {
-    t.Grammar t.Items /*empty*/
-    = t.Items;
-    t.Grammar t.Items (e.a'.'e.y)e.Items
-    , e.y : {
-        s.y' 'e.ye = s.y;
-        s.y e.ye '\'' ' 'e.yye = s.y e.ye '\'';
-    } : e.y^
-    , <List-Get t.Grammar e.y> : {
-        /*empty*/ = ;
-        e.L = <Set-InsertList t.Items e.L>;
-    };
+ToJulia_ {
+    (s.Stream) (e.K) /*empty*/
+    = ;
+    (s.Stream) (e.K) (e.R)e.L
+    , <Prout e.K' -> 'e.R> :
+    , <Putout s.Stream e.K' ➡ 'e.R> :
+    = <ToJulia_ (s.Stream) (e.K) e.L>;
 }
 
-Closure_ {
-    t.Grammar t.Items
-    , <Closure_loop t.Grammar t.Items <Set-Get t.Items>> : {
-        t.Items = t.Items;
-        t.NewItems = <Closure_loop t.Grammar t.NewItems <Set-Get t.NewItems>>;
-    };
+ToJulia {
+    t.List (s.mode) (s.Stream) /*empty*/
+    = ;
+    t.List (S) (s.Stream) (e.K)e.Keys
+    , <List-Get t.List e.K> : (t.S)
+    , <Set-Get t.S> : (e.L)
+    , <ToJulia_ (s.Stream) (e.K) e.L> :
+    = <ToJulia t.List (S) (s.Stream) e.Keys>;
+    t.List (G) (s.Stream) (e.K)e.Keys
+    , <List-Get t.List e.K> : e.L
+    , <Prout e.L> :
+    , <ToJulia_ (s.Stream) (e.K) e.L> :
+    = <ToJulia t.List (G) (s.Stream) e.Keys>;
 }
-
-Closure {
-    t.Grammar
-    , <Set-Create> : t.Items
-    , <List-Keys t.Grammar> : (e.Start)e.Keys
-    , <Set-Insert t.Items 'S\' -> .'e.Start> : t.Items^
-    = <Closure t.Grammar t.Items>;
-}
-
 
 FindWithoutT_termsloop {
     e.T' 'e.TE
@@ -144,7 +141,7 @@ RemoveUseless {
     t.Grammar
     , <Set-Create> : t.Set
     , <RemoveUseless_ t.Grammar t.Set> : t.Set^
-    , <Prout t.Set> :
+    , <Prout t.Set t.Grammar> :
     = <DropFromGrammar t.Grammar t.Set <List-Keys t.Grammar>>;
 }
 
@@ -203,8 +200,8 @@ ParseGrammar_ {
     t.List s.Stream
     , <Get s.Stream> : {
         0 = t.List;
-        e.T' -> 'e.Rule 0 = <List-AppendList t.List (e.T) <Split ('|') e.Rule>>;
-        e.T' -> 'e.Rule = <ParseGrammar_ <List-AppendList t.List (e.T) <Split ('|') e.Rule>> s.Stream>;
+        e.T' ➡ 'e.Rule 0 = <List-AppendList t.List (e.T) <Split ('|') e.Rule>>;
+        e.T' ➡ 'e.Rule = <ParseGrammar_ <List-AppendList t.List (e.T) <Split ('|') e.Rule>> s.Stream>;
     }
 }
 
@@ -214,13 +211,26 @@ ParseGrammar {
     = <ParseGrammar_ t.List s.Stream>;
 }
 
+Drop {
+    /*empty*/ (e.T)
+    = ;
+    (e.T' 'e.TE)e.Rules (e.T)
+    = <Drop e.Rules (e.T)>;
+    (e.Rule)e.Rules (e.T)
+    = (e.Rule)<Drop e.Rules (e.T)>;
+
+}
+
 FIRST {
     t.Grammar e.T' 'e.TE
     , <IsNTerm e.T> : {
         True
         , <List-Get t.Grammar e.T> : e.Rules
+        , <Prout e.Rules> :
+        , <Drop e.Rules (e.T)> : e.Rules^
+*        , <Prout e.Rules> :
         = <Map {
-            (e.T' 'e.TE) = ; /*ignoring A -> AX rules*/
+*            (e.T' 'e.TE) = ; /*ignoring A -> AX rules*/
             (e.Rule) = <FIRST t.Grammar e.Rule>;
             } e.Rules>;
         False = (e.T)
@@ -229,8 +239,9 @@ FIRST {
     , <IsNTerm e.T> : {
         True
         , <List-Get t.Grammar e.T> : e.Rules
+        , <Drop e.Rules (e.T)> : e.Rules^
         = <Map {
-            (e.T' 'e.TE) = ; /*ignoring A -> AX rules*/
+*            (e.T' 'e.TE) = ; /*ignoring A -> AX rules*/
             (e.Rule) = <FIRST t.Grammar e.Rule>;
             } e.Rules>;
         False = (e.T);
@@ -242,8 +253,8 @@ FIRST_rulesloop {
     t.Grammar t.Set /*empty*/
     = t.Set;
     t.Grammar t.Set (e.Rule)e.Rules
-    , <Prout e.Rule> :
-    , <Prout <FIRST t.Grammar e.Rule>> :
+    , <Prout tut e.Rule> :
+    , <Prout end <FIRST t.Grammar e.Rule>> :
 
     , <Set-InsertList t.Set <FIRST t.Grammar e.Rule>> : t.Set^
     = <FIRST_rulesloop t.Grammar t.Set e.Rules>;
@@ -355,92 +366,6 @@ FOLLOW_rulesloop {
     t.Grammar t.FOLLOW (e.K) (e.Rule)e.Rules
     , <FOLLOW_ruleloop t.Grammar t.FOLLOW (e.K) e.Rule> : t.FOLLOW^
     = <FOLLOW_rulesloop t.Grammar t.FOLLOW (e.K) e.Rules>;
-    /*
-    t.Grammar t.FOLLOW (e.K) (e.a' 'e.B' 'e.y)e.Rules
-    , <Prout three (e.K)' '(e.a)e.B(e.y)> :
-    , <IsNTerm e.B> : {
-        False = <FOLLOW_rulesloop t.Grammar t.FOLLOW (e.K) e.Rules>;
-        True
-        , <List-Get t.FOLLOW e.B> : (t.BF)
-        , t.BF : t.BFC
-        , <FIRST t.Grammar e.y> : e.Fst
-        , <ContainsTerm e.Fst> : {
-            False = t.BF;
-            True
-            , <List-Get t.FOLLOW e.K> : (t.KF)
-            , <Set-Get t.KF> : e.KF
-            = <Set-InsertList t.BF e.KF>;
-        } : t.BF^
-*        , <Prout t.BF e.Fst> :
-        , <Set-InsertList t.BF e.Fst> : t.BF^
-*        , <Prout t.BF> :
-        , t.BF : {
-            t.BFC = <FOLLOW_rulesloop t.Grammar t.FOLLOW (e.K) e.Rules>;
-            t.NewF
-            , <List-Rewrite t.FOLLOW (e.B) (t.BF)> : t.FOLLOW^
-            = <Br 'changed=True'><FOLLOW_rulesloop t.Grammar t.FOLLOW (e.K) e.Rules>;
-        };
-    };
-
-    t.Grammar t.FOLLOW (e.K) (e.a' 'e.B)e.Rules
-    , <Prout two> :
-    , <IsNTerm e.a> : {
-        False
-        , <IsNTerm e.B> : {
-            False = <FOLLOW_rulesloop t.Grammar t.FOLLOW (e.K) e.Rules>;
-            True
-            , <Prout tut (e.a' 'e.B)> :
-            , <List-Get t.FOLLOW e.B> : (t.BF)
-*            , <Prout t.BF' '(e.B)> :
-            , <List-Get t.FOLLOW e.K> : (t.KF)
-            , <Set-Get t.KF> : (e.KF)
-            , <Set-InsertList t.BF e.KF> : t.BF^
-            , <List-Rewrite t.FOLLOW (e.B) (t.BF)> : {
-                t.FOLLOW = <FOLLOW_rulesloop t.Grammar t.FOLLOW (e.K) e.Rules>;
-                t.NEWFOLLOW = <Br 'changed=True'><FOLLOW_rulesloop t.Grammar t.NEWFOLLOW (e.K) e.Rules>;
-            };
-        };
-        True
-        , <List-Get t.FOLLOW e.a> : (t.BF)
-
-        , t.BF : t.BFC
-        , <FIRST t.Grammar e.B> : e.Fst
-        , <Prout lol t.BF' '(e.B)> :
-        , <ContainsTerm e.Fst> : {
-            False = t.BF;
-            True
-            , <List-Get t.FOLLOW e.K> : (t.KF)
-            , <Set-Get t.KF> : (e.KF)
-            , <Prout t.KF' 'e.KF' 'want <Set-InsertList t.BF e.KF>> :
-            = <Set-InsertList t.BF e.KF>;
-        } : t.BF^
-        , <Prout t.BF e.Fst' 'pol> :
-        , <Set-InsertList t.BF e.Fst> : t.BF^
-*        , <Prout finish t.BF> :
-        , t.BF : {
-            t.BFC = <FOLLOW_rulesloop t.Grammar t.FOLLOW (e.K) e.Rules>;
-            t.NewF
-            , <List-Rewrite t.FOLLOW (e.a) (t.BF)> : t.FOLLOW^
-            = <Br 'changed=True'><FOLLOW_rulesloop t.Grammar t.FOLLOW (e.K) e.Rules>;
-        };
-
-    };
-
-    t.Grammar t.FOLLOW (e.K) (e.a)e.Rules
-    , <IsNTerm e.a> : {
-        False = <FOLLOW_rulesloop t.Grammar t.FOLLOW (e.K) e.Rules>;
-        True
-        , <List-Get t.FOLLOW e.a> : (t.BF)
-        , <List-Get t.FOLLOW e.K> : (t.KF)
-        , <Set-Get t.KF> : (e.KF)
-        , <Set-InsertList t.BF e.KF> : t.BF^
-        , <List-Rewrite t.FOLLOW (e.a) (t.BF)> : {
-            t.FOLLOW = <FOLLOW_rulesloop t.Grammar t.FOLLOW (e.K) e.Rules>;
-            t.NEWFOLLOW = <Br 'changed=True'><FOLLOW_rulesloop t.Grammar t.NEWFOLLOW (e.K) e.Rules>;
-        };
-    };
-    */
-
 }
 
 FOLLOW_loop {
@@ -462,7 +387,7 @@ FOLLOW_InitList {
     = t.FOLLOW;
     t.FOLLOW (e.S) (e.S)e.NT
     , <Set-Create> : t.Set
-    , <Set-Insert t.Set f> : t.Set^
+    , <Set-Insert t.Set 'Δ'> : t.Set^
     = <FOLLOW_InitList <List-Append t.FOLLOW (e.S) t.Set> e.NT>;
     t.FOLLOW (e.N)e.NT
     = <FOLLOW_InitList <List-Append t.FOLLOW (e.N) <Set-Create>> e.NT>;

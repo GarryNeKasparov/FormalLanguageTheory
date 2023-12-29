@@ -1,3 +1,6 @@
+import Pkg;
+Pkg.add("DataStructures");
+using DataStructures;
 function read_from_file(file)
     lines = []
     open(file, "r") do f
@@ -29,7 +32,16 @@ mutable struct Table
 end
 struct Todo
     type::String
-    data::Int64
+    data::Int
+end
+
+mutable struct TreeNode{T}
+    status::Int
+    path::String
+    data::Vector{T}
+    children::Vector{TreeNode}
+    root::TreeNode
+    TreeNode(data::Vector{T}) where T = new{T}(0, "0", data, TreeNode[])
 end
 
 function grammar_print(grammer)
@@ -45,19 +57,6 @@ function states_print(states)
         res *= "#State = $i\n"
         res *= "#begin\n"
         res *= grammar_print(state)
-        res *= "#end\n"
-    end
-    return res
-end
-function gen_com_for_is_srl(states, follow_set)
-    res = "#for\ni\n#states\n"*states_print(states)
-    res *= "#follow\n"
-    for nterm ∈ keys(follow_set)
-        res *= "#Nterm = $nterm\n"
-        res *= "#begin\n"
-        for terms ∈ follow_set[nterm]
-            res *= terms*"\n"
-        end
         res *= "#end\n"
     end
     return res
@@ -89,6 +88,7 @@ function parse_input(lines)
         end
     end
 end
+
 function parse_grammar(lines)
     grammer¹ = []
     grammer = Dict()
@@ -179,42 +179,6 @@ function parse_table_print(table)
     for (index¹, row) ∈ enumerate(table.rows)
         println(string(row)*"\t"*join([todo_to_string(todo) for todo ∈ table.table[index¹]], "\t"))
     end
-end
-function compute_order¹(grammar, view, nterm)
-    paths = []
-    for alter ∈ grammar.grammar[nterm]
-        for symbol ∈ alter
-            if symbol ∈ grammar.nterms && symbol ∉ view
-                rec_paths = compute_order¹(grammar, [view; symbol], symbol)
-                if isempty(rec_paths)
-                    push!(paths, symbol)
-                end
-                for path ∈ rec_paths
-                    push!(paths, [[symbol]; path])
-                end
-            end
-        end
-    end
-    return paths
-end
-
-function compute_order(grammar)
-    paths = compute_order¹(grammar, [grammar.start_nterm], grammar.start_nterm)
-    paths = [[[grammar.start_nterm]; path] for path ∈ paths]
-    unique!(paths)
-#     TODO Vlad
-    function is_older(nterm¹, nterm²)
-        for path ∈ paths
-            if nterm² ∈ path
-                nterm_index = findfirst(x -> x == nterm², path)
-                if nterm¹ ∉ path[begin:nterm_index]
-                    return false
-                end
-            end
-        end
-        return true
-    end
-    return paths
 end
 
 function find_closure(state, nterm, grammar, start_nterm)
@@ -325,95 +289,18 @@ function gen_states!(states, gotos, start_nterm, grammar)
         end
     end
 end
-function gen_first(rule, grammar, marked)
-    if !isempty(rule)
-        if rule[1] ∈ grammar.terms
-            return Set([rule[1]])
-        elseif rule[1] == "ϵ"
-            return Set(["ϵ"])
-        end
-        if rule[1] ∈ grammar.nterms
-            push!(marked, rule[1])
-            res = Set()
-            alter = grammar.grammar[rule[1]]
 
-            for rule¹ ∈ alter
-                marked¹ = copy(marked)
-                if rule¹[1] ∉ marked¹
-                    first_for = gen_first(rule¹, grammar, marked¹)
-                    for f_term ∈ first_for
-                        push!(res, f_term)
-                    end
-                end
-            end
-            if "ϵ" ∉ res
-                return res
-            else
-                new_res = Set()
-                filter!(x -> x != "ϵ", res)
-                if length(rule) > 1
-                    marked¹ = copy(marked)
-                    if rule[2:end] ∉ marked¹
-                        new_first = first(rule[2:end])
-                        if new_first != false
-                            new_res = res ∪ new_first
-                        else
-                            new_res = Set(res)
-                        end
-                        return new_res
-                    end
-                end
-                push!(res, "ϵ")
-                return res
-            end
+function get_follow_set(output_path)
+    follow_set = Dict{String, Any}()
+    lines = read_from_file(output_path)
+    follow_set["S'"] = ["Δ"];
+    for line in lines
+        term, c = eachsplit(line," ➡ ")
+        if haskey(follow_set, term)
+            push!(follow_set[term], c)
         else
-            return false
+            follow_set[term] = [c]
         end
-    else
-        return false
-    end
-end
-function gen_follow(nterm, grammar)
-    follow = Set()
-    if nterm == grammar.start_nterm
-        push!(follow, "Δ")
-    end
-    for current ∈ keys(grammar.grammar)
-        right_rules = grammar.grammar[current]
-        for sub_rule ∈ right_rules
-            if nterm ∈ sub_rule
-                while nterm ∈ sub_rule
-                    nterm_index = findfirst(x -> x == nterm, sub_rule)
-                    sub_rule = sub_rule[nterm_index+1:end]
-                    res = C_NULL
-                    if !isempty(sub_rule)
-                        res = gen_first(sub_rule, grammar, [])
-                        if "ϵ" ∈ res
-                            filter!(x -> x != "ϵ", res)
-                            current_follow = gen_follow(current, grammar)
-                            res = res ∪ current_follow
-                        end
-                    else
-                        if nterm != current
-                            res = gen_follow(current, grammar)
-                        end
-                    end
-#                     println(res, nterm)
-                    if res != false && res != C_NULL
-                        for i ∈ res
-                            push!(follow, i)
-                        end
-                    end
-                end
-            end
-        end
-    end
-    return follow
-end
-function create_follow_set(grammar)
-    follow_set = Dict()
-    for nterm in keys(grammar.grammar)
-        follow_set[nterm] = gen_follow(nterm, grammar)
     end
     return follow_set
 end
@@ -462,135 +349,129 @@ function gen_table(states, gotos, terms, nterms, grammar¹, follow_set)
     return parse_table
 end
 
-macro run_ref()
-    return :(Sys.iswindows() ? run(`rlmake main.ref | main.exe ./com.txt ./com.txt`) : run(`./main ./com.txt ./com.txt`))
+function run_ref(input_path, output_path)
+    if Sys.iswindows()
+        run(`./main.exe $input_path $output_path`)
+    else
+        run(`./main $input_path $output_path`)
+    end
+    return
 end
 
-function parse_string(str, base_stack, node_stack, flow, arrow, line, count,
-    parse_table, states, grammar¹, grammar, follow_set, step, pos)
-#     str *= "Δ"
-#     stack = []
-#     push!(stack, 1)
-#     flow = split(str, "")
-#     arrow = 1
-#     line = 1
-#     count = 0
+function get_root(node::TreeNode)
+    if isdefined(node, :root)
+        return node.root
+    else
+        return nothing
+    end
+end
+
+function parse_string(stack, flow, arrow, line, count,
+                parse_table, states, grammar¹, grammar, follow_set, step, pos)
+    global show
     while arrow <= length(flow)
         current_char = flow[arrow]
-        println("char $(current_char) base $(base_stack) node_stack $(node_stack) step $(step) pos $(pos) arrow $(arrow)")
         if current_char == "\n"
             current_char = "\$"
         end
         if current_char == " "
             current_char = "_"
         end
-        state = node_stack[end]
-        println(state)
+        println("char $(current_char) stack $(stack.data) step $(step) pos $(pos) arrow $(arrow)")
+        state = stack.data[end]g
         todo = [Todo("Error", C_NULL)]
         if current_char ∈ parse_table.cols
             todo = parse_table.table[state][findfirst(x -> x == current_char, parse_table.cols)]
         end
         if length(todo) == 1
-            println("$(todo[1])\n")
             todo = todo[1]
+            println(todo)
             if todo.type == "Error"
-                println("Error as line $line col $(arrow-count) by term $(current_char)")
-#                 exit(0)
+                stack.status = -1
+                return
+            elseif todo.type == "Accept"
+                stack.status = 1
+                return
             elseif todo.type == "Shift"
                 step += 1
-                if step == show
-                    println("Show Pos $(base_stack), $(node_stack)")
-                end
-                push!(node_stack, todo.data)
-            elseif todo.type == "Accept"
-#                 @label accept
-#                 println("Accepted")
-                global status = true
-                return
+                push!(stack.data, todo.data)
             else
                 step += 1
-                if step == show
-                    println(base_stack, node_stack)
-                end
-                rule = grammar¹[todo.data]
 
-                println(node_stack, ' ', rule, ' ', flow[arrow:end])
-                i = -1
-                if length(rule.right) >= length(node_stack)
-                    i = length(rule.right) - length(node_stack)
-                else
-                    for _ ∈ rule.right
-                          pop!(node_stack)
+                rule = grammar¹[todo.data]
+#                 println(stack.data, rule.right)
+                if length(rule.right) >= length(stack.data)
+                    parent = get_root(stack)
+#                     println(parent)
+                    if isnothing(parent)
+                        println("Super stack error")
+                        exit(0)
+                    end
+#                     println(parent.data, stack.data)
+                    stack.data = vcat(parent.data, stack.data)
+                    grand_parent = get_root(parent)
+                    if !isnothing(grand_parent)
+#                         println(grand_parent)
+                        stack.root = grand_parent
                     end
                 end
-                println(node_stack)
-                if i >= 0
-                    state¹ = base_stack[end-i]
-                    println(state¹)
-                    node_stack = []
-                else
-                    state¹ = node_stack[end]
+                for _ ∈ rule.right
+                    pop!(stack.data)
                 end
-#                 println(state)
-                push!(node_stack, parse_table.table[state¹][findfirst(x -> x == rule.left, parse_table.cols)][1].data)
+                state¹ = stack.data[end]
+                push!(stack.data, parse_table.table[state¹][findfirst(x -> x == rule.left, parse_table.cols)][1].data)
                 continue
             end
         else
-            println("\nSplitting $(flow[arrow:end]) with $(arrow) $(step) $(node_stack) arrow $(arrow)\n")
-            err = 0
+            stack.status = 2
+            global first_split
+            if first_split == ""
+                first_split = "Error in line $line col $(arrow-count) by term $(current_char)"
+            end
             for item in todo
+                next = 1
+                node = TreeNode([])
+                node.path = pos*'('*item.type[1]*string(item.data)*')'
+                node.root = stack
+                println(node.path)
                 if item.type == "Error"
-                    err += 1
-                end
-            end
-            if err == length(todo)
-                println("Error as line $line col $(arrow-count) by term $(current_char)")
-                exit(0)
-            end
-            for (j, item) in enumerate(todo)
-#                 println(j, item)
-                if item.type == "Error"
-                    err += 1
-                    println("Error as line $line col $(arrow-count) by term $(current_char)")
-
-#                     exit(0)
+                    node.status = -1
+                    return
+                elseif item.type == "Accept"
+                    node.status = 1
+                    return
                 elseif item.type == "Shift"
                     step += 1
-                    if step == show
-                        println("Show Pos $(base_stack), $(node_stack)")
-                    end
-                    node = [item.data]
-                elseif item.type == "Accept"
-                    global status = true
-                    return
+                    if step ==
+                    node.data = [item.data]
+#                     println("Item $(item) Node $(node.data)")
                 else
                     step += 1
-                    if step == show
-                        println("Show Pos $(base_stack), $(node_stack)")
-                    end
                     rule = grammar¹[item.data]
-                    node = node_stack
-                    for _ ∈ rule.right
-                        pop!(node)
+                    node.data = stack.data
+                    if length(rule.right) >= length(node.data)
+                        parent = get_root(stack)
+                        if isnothing(parent)
+                            println("Super stack error")
+                            exit(0)
+                        end
+                        node.data = vcat(parent.data, node.data)
                     end
-                    state¹ = node[end]
-                    push!(node, parse_table.table[state¹][findfirst(x -> x == rule.left, parse_table.cols)][1].data)
+                    for _ ∈ rule.right
+                        pop!(node.data)
+                    end
+                    state¹ = node.data[end]
+                    next = 0
+                    push!(node.data, parse_table.table[state¹][findfirst(x -> x == rule.left, parse_table.cols)][1].data)
                 end
-                tmp_line = copy(line)
-                tmp_count = copy(count)
-                if current_char == "\$"
-                    tmp_line+=1
-                    tmp_count=copy(arrow)
-                end
-
-                parse_string(str, node_stack, node, flow, copy(arrow)+1, tmp_line, tmp_count,
-                        parse_table, states, grammar¹, grammar, follow_set,
-                        copy(step), pos*'('*item.type[1]*string(item.data)*')')
+                push!(stack.children, node)
+                println(stack.children[end].path, node.path)
+                parse_string(node, flow, arrow+next, line, count,
+                    parse_table, states, grammar¹, grammar, follow_set, step,
+                    node.path)
             end
-
             return
         end
-
         arrow+=1
         if current_char == "\$"
             line+=1
@@ -599,28 +480,46 @@ function parse_string(str, base_stack, node_stack, flow, arrow, line, count,
     end
 end
 
+
 status = false
-show = parse(Int32, ARGS[2])
+show = parse(Int32, ARGS[3])
+first_split = ""
+function process_tree(root, level=0, prnt=false)
+    global status
+    s = root.status
+    status = s == 1
+    if s == -1
+        s = "Reject"
+    elseif s == 1
+        s = "Accept"
+    elseif s == 2
+        s = "Splitted"
+    end
+    if prnt
+        println('\t'^level, root.data, " with status: $(s), path: $(root.path)")
+    end
+    if !isempty(root.children)
+        for c in root.children
+            process_tree(c, level+1)
+        end
+    end
+    return
+end
 
 begin
+    input_path = ARGS[1]
+    output_path = ARGS[2]
+    run_ref(input_path, output_path)
     priority, str, grammar, grammar¹ = parse_input(read_from_file(ARGS[1]))
-#     paths = compute_order(grammar)
     dot_grammar = [Rule(rule.left, [["."]; rule.right]) for rule ∈ grammar¹]
     states = []
     gotos = Dict()
     push!(states, find_closure(C_NULL, dot_grammar[1].left, dot_grammar, dot_grammar[1].left))
     gen_states!(states, gotos, dot_grammar[1].left, dot_grammar)
-#     follow_set = create_follow_set(grammar)
-    follow_set = Dict("S'" => Set(["Δ"]),
-        "S" => Set(["Δ", "p"]),
-        "N" => Set(["Δ", "v", "p"]),
-        "P" => Set(["Δ", "v", "p"]),
-        "V" => Set(["Δ", "p"]),
-        )
+    follow_set = get_follow_set(output_path)
     println(follow_set)
     table = gen_table(states, gotos, grammar.terms, grammar.nterms, grammar¹, follow_set)
     parse_table_print(table);
-
     str *= "Δ"
     flow = split(str, "")
     arrow = 1
@@ -628,8 +527,14 @@ begin
     count = 0
     step = 1
     pos = "0"
-    parse_string(str, [], [1], flow, arrow, line, count,
+    christmas_tree = TreeNode([1])
+    parse_string(christmas_tree, flow, arrow, line, count,
         table, states, grammar¹, grammar, follow_set, step, pos)
-    status ? println("Accepted") : println("No action in last position")
-
+    process_tree(christmas_tree, 0, false)
+    global status
+    if !status
+        println(first_split)
+    else
+        println("Accepted")
+    end
 end
