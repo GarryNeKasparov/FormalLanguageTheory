@@ -68,22 +68,17 @@ function parse_com_is_srt(lines)
 end
 
 function parse_input(lines)
-    priority = false
     flag = C_NULL
     str = []
     for (index, line) ∈ enumerate(lines)
-        if line == "#priority"
-            flag = "priority"
-        elseif line == "#string"
+        if line == "#string"
             flag = "string"
         elseif line == "#grammar"
             str = join(str, "\n")
             grammer, grammer¹ = parse_grammar(lines[index+1:end])
-            return priority, str, grammer, grammer¹
+            return str, grammer, grammer¹
         else
-            if flag == "priority"
-                priority = parse(Bool, line)
-            elseif flag == "string"
+            if flag == "string"
                 push!(str, line)
             end
         end
@@ -500,6 +495,7 @@ if length(ARGS) > 3
 end
 first_split = ""
 snapshot = Dict()
+
 function process_tree(root, level=0, prnt=false, full=false)
     global status, snapshot
     s = root.status
@@ -534,7 +530,7 @@ begin
     input_path = ARGS[1]
     output_path = ARGS[2]
     run_ref(input_path, output_path)
-    priority, str, grammar, grammar¹ = parse_input(read_from_file(ARGS[1]))
+    str, grammar, grammar¹ = parse_input(read_from_file(ARGS[1]))
     dot_grammar = [Rule(rule.left, [["."]; rule.right]) for rule ∈ grammar¹]
     states = []
     gotos = Dict()
@@ -554,7 +550,7 @@ begin
         table, states, grammar¹, grammar, follow_set, step, pos)
 
     global status, snapshot, show
-    if show != false
+    if show != false && length(keys(snapshot)) > 0
         process_tree(christmas_tree, 0, true)
     else
         process_tree(christmas_tree, 0, false)

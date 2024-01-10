@@ -8,12 +8,12 @@ List-Append, List-AppendList, List-Get, List-ToJSON, List-Keys, List-WhereIn;
 
 $ENTRY Go {
     , <Open 'r' 1 <Arg 1>> :
-    , <ReadLines 1 ('#grammar')> : '#priority\n'e.Priority'\n#string\n'e.String
+    , <ReadLines 1 ('#grammar')> : '#string\n'e.String
     , <ParseGrammar 1> : t.Grammar
     , <Close 1> :
     , <RemoveUseless t.Grammar> : t.Grammar^
     , <Open 'w' 1 <Arg 1>> :
-    , <Putout 1 '#priority\n'e.Priority'\n#string\n'e.String'#grammar'> :
+    , <Putout 1 '#string\n'e.String'#grammar'> :
     , <ToJulia t.Grammar (G) (1) <List-Keys t.Grammar>> :
     , <Close 1> :
     , <Open 'w' 2 <Arg 2>> :
