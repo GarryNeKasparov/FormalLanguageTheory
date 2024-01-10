@@ -1,9 +1,7 @@
-#priority
-true
 #string
-n*n+n
+a+(a+(a))
 #grammar
 S ➡ S + S
-S ➡ S * S
+S ➡ S - S
 S ➡ ( S )
-S ➡ n
+S ➡ a
